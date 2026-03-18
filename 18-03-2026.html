@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rabbit Jump Game</title>
+
+<style>
+body{
+  margin:0;
+  overflow:hidden;
+  background:#87CEEB;
+  font-family:sans-serif;
+}
+
+/* Game Area */
+.game{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
+}
+
+/* Ground */
+.ground{
+  position:absolute;
+  bottom:0;
+  width:100%;
+  height:100px;
+  background:#228B22;
+}
+
+/* Rabbit */
+.rabbit{
+  position:absolute;
+  bottom:100px;
+  left:50px;
+  width:50px;
+  height:50px;
+  background:white;
+  border-radius:50%;
+}
+
+/* Obstacle */
+.obstacle{
+  position:absolute;
+  bottom:100px;
+  right:-50px;
+  width:40px;
+  height:60px;
+  background:red;
+  animation:move 2s linear infinite;
+}
+
+/* Movement */
+@keyframes move{
+  from{ right:-50px; }
+  to{ right:100%; }
+}
+
+/* Jump */
+.jump{
+  animation:jump 0.6s ease;
+}
+
+@keyframes jump{
+  0%{ bottom:100px; }
+  50%{ bottom:220px; }
+  100%{ bottom:100px; }
+}
+
+/* Score */
+.score{
+  position:absolute;
+  top:20px;
+  left:20px;
+  font-size:24px;
+  color:#000;
+}
+</style>
+</head>
+
+<body>
+
+<div class="game">
+  <div class="score">Score: 0</div>
+  <div class="rabbit" id="rabbit"></div>
+  <div class="obstacle" id="obstacle"></div>
+  <div class="ground"></div>
+</div>
+
+<script>
+const rabbit = document.getElementById("rabbit");
+const obstacle = document.getElementById("obstacle");
+const scoreText = document.querySelector(".score");
+
+let score = 0;
+
+// Jump
+document.addEventListener("keydown", () => {
+  if(!rabbit.classList.contains("jump")){
+    rabbit.classList.add("jump");
+    setTimeout(()=> rabbit.classList.remove("jump"),600);
+  }
+});
+
+// Collision + Score
+setInterval(() => {
+  let rabbitTop = parseInt(window.getComputedStyle(rabbit).getPropertyValue("bottom"));
+  let obstacleLeft = parseInt(window.getComputedStyle(obstacle).getPropertyValue("right"));
+
+  // Collision
+  if(obstacleLeft > (window.innerWidth - 100) && obstacleLeft < (window.innerWidth - 40) && rabbitTop < 150){
+    alert("Game Over 😢\nScore: " + score);
+    location.reload();
+  }
+
+  // Score increase
+  score++;
+  scoreText.innerText = "Score: " + score;
+
+}, 100);
+</script>
+
+</body>
+</html>

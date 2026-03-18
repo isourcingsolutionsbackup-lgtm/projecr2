@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Catch – Ultra Hard</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-family:Arial;
+  color:white;
+  overflow:hidden;
+  background:linear-gradient(-45deg,#000428,#004e92,#000000,#1f1c2c);
+  background-size:400% 400%;
+  animation:bg 12s ease infinite;
+}
+
+@keyframes bg{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+h2{margin-bottom:8px;text-shadow:0 0 15px cyan;}
+#info{margin-bottom:10px;font-size:18px;}
+
+canvas{
+  background:rgba(0,0,0,0.4);
+  border-radius:20px;
+  box-shadow:0 0 40px cyan;
+  width:90vw;
+  max-width:420px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>💀 Neon Catch – Ultra Hard 💀</h2>
+<p id="info"></p>
+<canvas id="game" width="420" height="650"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const info=document.getElementById("info");
+
+let score=0,lives=3,level=1,target=6;
+let gameOver=false,shake=0;
+
+let paddle={
+  width:110,
+  height:18,
+  x:155,
+  y:600
+};
+
+let balls=[];
+function addBall(speedBoost=0,isTrap=false){
+  balls.push({
+    x:Math.random()*380,
+    y:0,
+    radius:15,
+    speedY:3+level+speedBoost,
+    speedX:(Math.random()>0.5?2:-2)*(1+level*0.2),
+    trap:isTrap
+  });
+}
+
+addBall();
+
+let stars=[];
+for(let i=0;i<100;i++){
+  stars.push({
+    x:Math.random()*420,
+    y:Math.random()*650,
+    size:Math.random()*2
+  });
+}
+
+function updateInfo(){
+  info.innerHTML=
+  "Level: "+level+
+  " | Score: "+score+
+  " | Lives: ❤️".repeat(lives);
+}
+
+function drawStars(){
+  ctx.fillStyle="white";
+  stars.forEach(s=>{
+    ctx.fillRect(s.x,s.y,s.size,s.size);
+    s.y+=0.7;
+    if(s.y>650) s.y=0;
+  });
+}
+
+function drawPaddle(){
+  ctx.shadowBlur=20;
+  ctx.shadowColor="cyan";
+  ctx.fillStyle="cyan";
+  ctx.fillRect(paddle.x,paddle.y,paddle.width,paddle.height);
+  ctx.shadowBlur=0;
+}
+
+function drawBalls(){
+  balls.forEach(b=>{
+    let g=ctx.createRadialGradient(b.x,b.y,5,b.x,b.y,b.radius);
+    if(b.trap){
+      g.addColorStop(0,"white");
+      g.addColorStop(1,"red");
+    }else{
+      g.addColorStop(0,"white");
+      g.addColorStop(1,"magenta");
+    }
+    ctx.shadowBlur=20;
+    ctx.shadowColor=b.trap?"red":"magenta";
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur=0;
+  });
+}
+
+function resetBall(b){
+  b.x=Math.random()*380;
+  b.y=0;
+  b.speedY+=0.5;
+}
+
+function screenShake(){
+  shake=10;
+}
+
+function update(){
+
+  if(gameOver) return;
+
+  balls.forEach(b=>{
+    b.y+=b.speedY;
+    b.x+=b.speedX;
+
+    if(b.x<=0 || b.x>=420){
+      b.speedX*=-1;
+    }
+
+    // Catch
+    if(
+      b.y+b.radius>=paddle.y &&
+      b.x>paddle.x &&
+      b.x<paddle.x+paddle.width
+    ){
+      if(b.trap){
+        lives--;
+        screenShake();
+      }else{
+        score++;
+      }
+      resetBall(b);
+    }
+
+    // Miss
+    if(b.y>650){
+      if(!b.trap){
+        lives--;
+        screenShake();
+      }
+      resetBall(b);
+    }
+  });
+
+  if(score>=target){
+    level++;
+    score=0;
+    target+=4;
+
+    // Harder each level
+    paddle.width-=8;
+    if(paddle.width<55) paddle.width=55;
+
+    addBall(level*0.3,false);
+
+    // Add trap ball occasionally
+    if(level%2===0){
+      addBall(1,true);
+    }
+  }
+
+  if(lives<=0){
+    gameOver=true;
+  }
+}
+
+function draw(){
+  ctx.clearRect(0,0,420,650);
+
+  if(shake>0){
+    ctx.translate(Math.random()*10-5,Math.random()*10-5);
+    shake--;
+  }
+
+  drawStars();
+  drawPaddle();
+  drawBalls();
+
+  if(gameOver){
+    ctx.fillStyle="red";
+    ctx.font="45px Arial";
+    ctx.fillText("GAME OVER",70,330);
+  }
+
+  ctx.setTransform(1,0,0,1,0,0);
+}
+
+canvas.addEventListener("mousemove",e=>{
+  const rect=canvas.getBoundingClientRect();
+  const mouseX=e.clientX-rect.left;
+  paddle.x=mouseX*(420/rect.width)-paddle.width/2;
+  if(paddle.x<0)paddle.x=0;
+  if(paddle.x+paddle.width>420)
+    paddle.x=420-paddle.width;
+});
+
+// Mobile touch
+canvas.addEventListener("touchmove",e=>{
+  const rect=canvas.getBoundingClientRect();
+  const touchX=e.touches[0].clientX-rect.left;
+  paddle.x=touchX*(420/rect.width)-paddle.width/2;
+  if(paddle.x<0)paddle.x=0;
+  if(paddle.x+paddle.width>420)
+    paddle.x=420-paddle.width;
+});
+
+function loop(){
+  updateInfo();
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>

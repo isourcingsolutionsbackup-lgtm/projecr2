@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Platform Jump Game - Moving Platforms</title>
+
+<style>
+body{
+  margin:0;
+  background:#222;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  font-family:sans-serif;
+}
+
+.game{
+  position:relative;
+  width:400px;
+  height:600px;
+  background:linear-gradient(#87ceeb,#e0f7ff);
+  overflow:hidden;
+  border:4px solid white;
+}
+
+.player{
+  position:absolute;
+  width:40px;
+  height:40px;
+  background:red;
+  bottom:100px;
+  left:180px;
+  border-radius:6px;
+}
+
+.platform{
+  position:absolute;
+  width:100px;
+  height:15px;
+  background:#2ecc71;
+  border-radius:4px;
+}
+
+.score{
+  position:absolute;
+  top:10px;
+  left:10px;
+  font-size:20px;
+  color:white;
+}
+
+.game-over{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:30px;
+  color:white;
+  background:rgba(0,0,0,0.6);
+  padding:20px;
+  border-radius:10px;
+  display:none;
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="game" id="game">
+  <div class="player" id="player"></div>
+  <div class="score" id="score">Score:0</div>
+  <div class="game-over" id="gameOver">Game Over<br>Press Enter to Restart</div>
+</div>
+
+<script>
+const game = document.getElementById("game")
+const player = document.getElementById("player")
+const scoreText = document.getElementById("score")
+const gameOverText = document.getElementById("gameOver")
+
+let playerX = 180
+let playerY = 100
+let velocityY = 0
+let score = 0
+let keys = {}
+let platforms = []
+let gameRunning = true
+
+const GAME_WIDTH = 400
+const GAME_HEIGHT = 600
+const PLAYER_WIDTH = 40
+const PLAYER_HEIGHT = 40
+const PLATFORM_WIDTH = 100
+const PLATFORM_HEIGHT = 15
+
+document.addEventListener("keydown", e => {
+  keys[e.key] = true
+  if(!gameRunning && e.key === "Enter") restartGame()
+})
+document.addEventListener("keyup", e => keys[e.key] = false)
+
+// Initialize platforms
+function initPlatforms() {
+  platforms = []
+  let y = 50
+  while(y < GAME_HEIGHT){
+    createPlatform(Math.random() * (GAME_WIDTH - PLATFORM_WIDTH), y)
+    y += 120
+  }
+}
+
+// Create a platform with movement
+function createPlatform(x, y){
+  const plat = document.createElement("div")
+  plat.classList.add("platform")
+  plat.style.left = x + "px"
+  plat.style.bottom = y + "px"
+  plat.speed = Math.random() < 0.5 ? 1 : -1 // horizontal movement direction
+  game.appendChild(plat)
+  platforms.push(plat)
+}
+
+// Update horizontal movement of platforms
+function movePlatforms() {
+  platforms.forEach(plat => {
+    let left = parseFloat(plat.style.left)
+    left += plat.speed
+    if(left <= 0) plat.speed = Math.abs(plat.speed)
+    if(left >= GAME_WIDTH - PLATFORM_WIDTH) plat.speed = -Math.abs(plat.speed)
+    plat.style.left = left + "px"
+  })
+}
+
+function gameLoop(){
+  if(!gameRunning) return
+
+  // Player movement
+  if(keys["ArrowLeft"]) playerX -= 5
+  if(keys["ArrowRight"]) playerX += 5
+  if(playerX < 0) playerX = 0
+  if(playerX > GAME_WIDTH - PLAYER_WIDTH) playerX = GAME_WIDTH - PLAYER_WIDTH
+
+  // Gravity
+  velocityY -= 0.5
+  playerY += velocityY
+
+  // Platform collision (falling only)
+  platforms.forEach(plat => {
+    const platRect = plat.getBoundingClientRect()
+    const pRect = player.getBoundingClientRect()
+    if(velocityY < 0 &&
+       pRect.bottom >= platRect.top &&
+       pRect.bottom <= platRect.top + 10 &&
+       pRect.left + 5 < platRect.right &&
+       pRect.right - 5 > platRect.left) {
+         velocityY = 12
+         score++
+         scoreText.innerText = "Score:" + score
+    }
+  })
+
+  // Scroll platforms and player
+  if(playerY > 300){
+    const delta = playerY - 300
+    playerY = 300
+    platforms.forEach(plat => {
+      let bottom = parseFloat(plat.style.bottom)
+      bottom -= delta
+      plat.style.bottom = bottom + "px"
+    })
+  }
+
+  // Move platforms horizontally
+  movePlatforms()
+
+  // Remove platforms below screen and add new ones at top
+  platforms.forEach((plat, index) => {
+    let bottom = parseFloat(plat.style.bottom)
+    if(bottom < -PLATFORM_HEIGHT){
+      plat.remove()
+      platforms.splice(index,1)
+      createPlatform(Math.random() * (GAME_WIDTH - PLATFORM_WIDTH), GAME_HEIGHT)
+    }
+  })
+
+  // Check if player falls
+  if(playerY < 0){
+    playerY = 0
+    gameOver()
+  }
+
+  player.style.left = playerX + "px"
+  player.style.bottom = playerY + "px"
+
+  requestAnimationFrame(gameLoop)
+}
+
+function gameOver(){
+  gameRunning = false
+  gameOverText.style.display = "block"
+}
+
+function restartGame(){
+  gameRunning = true
+  playerX = 180
+  playerY = 100
+  velocityY = 0
+  score = 0
+  scoreText.innerText = "Score:0"
+  gameOverText.style.display = "none"
+  platforms.forEach(p => p.remove())
+  initPlatforms()
+  gameLoop()
+}
+
+// Start game
+initPlatforms()
+gameLoop()
+</script>
+
+</body>
+</html>

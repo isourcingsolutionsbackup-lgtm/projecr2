@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Cartoon Adventure Pro</title>
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(to top,#141e30,#243b55);
+  overflow:hidden;
+  color:cyan;
+  text-align:center;
+}
+
+h2{
+  margin:10px;
+}
+
+canvas{
+  display:block;
+  margin:auto;
+  border-radius:15px;
+  box-shadow:0 0 40px rgba(255,255,255,0.2);
+}
+.levelUp{
+  position:absolute;
+  top:40%;  
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:40px;
+  font-weight:bold;
+  opacity:0;
+  pointer-events:none;
+}
+.l{height: 500px;}
+</style>
+</head>
+<body>
+
+<h2>
+Level: <span id="lvl">1</span> |
+Score: <span id="score">0</span> |
+Lives: <span id="lives">3</span>
+<span class="l">|</span>
+</h2>
+
+<div class="levelUp" id="levelUpText">LEVEL UP!</div>
+
+<canvas id="game" width="900" height="450"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let level=1,score=0,lives=3;
+let gravity=0.7;
+
+const lvlText=document.getElementById("lvl");
+const scoreText=document.getElementById("score");
+const livesText=document.getElementById("lives");
+const levelUpText=document.getElementById("levelUpText");
+
+let player={x:60,y:350,r:20,dx:0,dy:0,jump:false};
+
+let enemies=[];
+let coins=[];
+let particles=[];
+
+function spawnLevel(){
+  enemies=[];
+  coins=[];
+  for(let i=0;i<level;i++){
+    enemies.push({
+      x:400+Math.random()*400,
+      y:370,
+      r:18,
+      dir:Math.random()>0.5?1:-1
+    });
+  }
+  for(let i=0;i<level+2;i++){
+    coins.push({
+      x:200+Math.random()*600,
+      y:200+Math.random()*150,
+      r:10,
+      angle:0
+    });
+  }
+}
+
+spawnLevel();
+
+const keys={};
+document.addEventListener("keydown",e=>keys[e.key]=true);
+document.addEventListener("keyup",e=>keys[e.key]=false);
+
+function update(){
+
+  if(keys["ArrowRight"]) player.dx=4;
+  else if(keys["ArrowLeft"]) player.dx=-4;
+  else player.dx=0;
+
+  if(keys["ArrowUp"] && !player.jump){
+    player.dy=-13;
+    player.jump=true;
+  }
+
+  player.dy+=gravity;
+  player.x+=player.dx;
+  player.y+=player.dy;
+
+  if(player.y>=370){
+    player.y=370;
+    player.dy=0;
+    player.jump=false;
+  }
+
+  enemies.forEach(e=>{
+    e.x+=e.dir*(2+level*0.3);
+    if(e.x<0||e.x>880) e.dir*=-1;
+
+    if(distance(player,e)<player.r+e.r){
+      lives--;
+      livesText.innerText=lives;
+      resetPlayer();
+      if(lives<=0){
+        alert("💀 GAME OVER");
+        location.reload();
+      }
+    }
+  });
+
+  coins=coins.filter(c=>{
+    c.angle+=0.1;
+    if(distance(player,c)<player.r+c.r){
+      score+=10;
+      scoreText.innerText=score;
+      createParticles(c.x,c.y);
+      return false;
+    }
+    return true;
+  });
+
+  if(coins.length===0){
+    level++;
+    lvlText.innerText=level;
+    showLevelUp();
+    spawnLevel();
+  }
+
+  particles.forEach(p=>{
+    p.x+=p.dx;
+    p.y+=p.dy;
+    p.life--;
+  });
+
+  particles=particles.filter(p=>p.life>0);
+}
+
+function draw(){
+  ctx.clearRect(0,0,900,450);
+
+  // Gradient ground
+  let grad=ctx.createLinearGradient(0,350,0,450);
+  grad.addColorStop(0,"#4caf50");
+  grad.addColorStop(1,"#2e7d32");
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,390,900,60);
+
+  // Player
+  ctx.fillStyle="#00e5ff";
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="white";
+  ctx.beginPath();
+  ctx.arc(player.x-7,player.y-5,4,0,Math.PI*2);
+  ctx.arc(player.x+7,player.y-5,4,0,Math.PI*2);
+  ctx.fill();
+
+  // Enemies
+  ctx.fillStyle="#ff1744";
+  enemies.forEach(e=>{
+    ctx.beginPath();
+    ctx.arc(e.x,e.y,e.r,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // Coins (rotating effect)
+  coins.forEach(c=>{
+    ctx.save();
+    ctx.translate(c.x,c.y);
+    ctx.rotate(Math.sin(c.angle)*0.5);
+    ctx.fillStyle="gold";
+    ctx.beginPath();
+    ctx.arc(0,0,c.r,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // Particles
+  ctx.fillStyle="yellow";
+  particles.forEach(p=>{
+    ctx.fillRect(p.x,p.y,3,3);
+  });
+}
+
+function distance(a,b){
+  return Math.hypot(a.x-b.x,a.y-b.y);
+}
+
+function resetPlayer(){
+  player.x=60;
+  player.y=350;
+}
+
+function showLevelUp(){
+  levelUpText.style.opacity=1;
+  levelUpText.style.transform="translate(-50%,-50%) scale(1.5)";
+  setTimeout(()=>{
+    levelUpText.style.opacity=0;
+    levelUpText.style.transform="translate(-50%,-50%) scale(1)";
+  },1000);
+}
+
+function createParticles(x,y){
+  for(let i=0;i<15;i++){
+    particles.push({
+      x:x,
+      y:y,
+      dx:(Math.random()-0.5)*4,
+      dy:(Math.random()-0.5)*4,
+      life:30
+    });
+  }
+}
+
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>

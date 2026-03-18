@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<style>
+
+body{
+margin:0;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+background:#000;
+flex-direction:column;
+}
+
+canvas{
+background:black;
+width:90vw;
+max-width:500px;
+}
+
+.info{
+color:white;
+font-size:20px;
+margin-bottom:10px;
+}
+
+.levelUp{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:40px;
+font-weight:bold;
+color:yellow;
+opacity:0;
+animation:pop 1s;
+}
+
+@keyframes pop{
+0%{transform:translate(-50%,-50%) scale(.5);opacity:0}
+50%{transform:translate(-50%,-50%) scale(1.4);opacity:1}
+100%{transform:translate(-50%,-50%) scale(1);opacity:0}
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="info">
+Score: <span id="score">0</span> |
+Level: <span id="level">1</span>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+
+let canvas=document.getElementById("game")
+let ctx=canvas.getContext("2d")
+
+canvas.width=500
+canvas.height=400
+
+let ballX=250
+let ballY=200
+let dx=3
+let dy=3
+
+let paddleX=200
+
+let level=1
+let score=0
+
+let scoreText=document.getElementById("score")
+let levelText=document.getElementById("level")
+
+let bgColors=["black","#020617","#1e1b4b","#1a2e05","#3b0764"]
+let brickColors=["purple","orange","cyan","yellow","lime"]
+
+let bricks=[]
+
+function createBricks(){
+
+bricks=[]
+
+for(let i=0;i<5;i++){
+for(let j=0;j<8;j++){
+
+bricks.push({
+x:60*j+30,
+y:40*i+20,
+status:1
+})
+
+}
+}
+
+}
+
+createBricks()
+
+/* MOUSE CONTROL */
+document.addEventListener("mousemove",e=>{
+paddleX=e.clientX-canvas.offsetLeft-50
+})
+
+/* TOUCH CONTROL */
+canvas.addEventListener("touchmove",e=>{
+let touch=e.touches[0]
+paddleX=touch.clientX-canvas.offsetLeft-50
+})
+
+/* KEYBOARD CONTROL */
+document.addEventListener("keydown",e=>{
+
+if(e.key==="ArrowLeft") paddleX-=40
+if(e.key==="ArrowRight") paddleX+=40
+
+})
+
+function levelAnimation(){
+
+let text=document.createElement("div")
+text.innerText="LEVEL "+level
+text.className="levelUp"
+document.body.appendChild(text)
+
+setTimeout(()=>{text.remove()},1000)
+
+}
+
+function drawBall(){
+ctx.beginPath()
+ctx.arc(ballX,ballY,10,0,Math.PI*2)
+ctx.fillStyle="white"
+ctx.fill()
+}
+
+function drawPaddle(){
+ctx.fillRect(paddleX,370,100,10)
+}
+
+function drawBricks(){
+
+let color=brickColors[level%brickColors.length]
+
+bricks.forEach(b=>{
+
+if(b.status){
+
+ctx.fillStyle=color
+ctx.fillRect(b.x,b.y,50,20)
+
+if(ballX>b.x &&
+ballX<b.x+50 &&
+ballY>b.y &&
+ballY<b.y+20){
+
+dy=-dy
+b.status=0
+
+score++
+scoreText.innerText=score
+
+}
+
+}
+
+})
+
+}
+
+function game(){
+
+canvas.style.background=bgColors[level%bgColors.length]
+
+ctx.clearRect(0,0,500,400)
+
+drawBall()
+drawPaddle()
+drawBricks()
+
+ballX+=dx
+ballY+=dy
+
+if(ballX<10 || ballX>490) dx=-dx
+if(ballY<10) dy=-dy
+
+if(ballY>360 &&
+ballX>paddleX &&
+ballX<paddleX+100){
+dy=-dy
+}
+
+if(ballY>400){
+
+alert("Game Over\nScore: "+score)
+
+ballX=250
+ballY=200
+dx=3
+dy=3
+level=1
+score=0
+
+scoreText.innerText=score
+levelText.innerText=level
+
+createBricks()
+
+}
+
+let remaining=bricks.filter(b=>b.status)
+
+if(remaining.length===0){
+
+level++
+levelText.innerText=level
+
+dx+=0.5
+dy+=0.5
+
+createBricks()
+levelAnimation()
+
+}
+
+requestAnimationFrame(game)
+
+}
+
+game()
+
+</script>
+
+</body>
+</html>

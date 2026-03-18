@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zombie Survival</title>
+
+<style>
+
+/* BG */
+body{
+margin:0;
+overflow:hidden;
+font-family:sans-serif;
+background:radial-gradient(circle at top,#0f172a,#020617,#000);
+}
+
+.game{
+position:relative;
+width:100%;
+height:100vh;
+}
+
+/* PLAYER */
+.player{
+position:absolute;
+width:35px;
+height:35px;
+background:linear-gradient(cyan,#06b6d4);
+border-radius:50%;
+box-shadow:0 0 20px cyan;
+}
+
+/* FACE */
+.player::before{
+content:"";
+position:absolute;
+top:8px;
+left:8px;
+width:6px;
+height:6px;
+background:black;
+border-radius:50%;
+box-shadow:12px 0 black;
+}
+.player::after{
+content:"";
+position:absolute;
+bottom:6px;
+left:9px;
+width:15px;
+height:6px;
+background:black;
+border-radius:10px;
+}
+
+/* BULLET */
+.bullet{
+position:absolute;
+width:6px;
+height:14px;
+background:yellow;
+border-radius:4px;
+box-shadow:0 0 15px yellow;
+}
+
+/* ZOMBIE */
+.zombie{
+position:absolute;
+width:40px;
+height:40px;
+background:radial-gradient(circle,#22c55e,#14532d);
+border-radius:50%;
+box-shadow:0 0 15px lime;
+}
+
+/* BOSS */
+.boss{
+position:absolute;
+width:80px;
+height:80px;
+background:radial-gradient(circle,#ef4444,#7f1d1d);
+border-radius:50%;
+box-shadow:0 0 25px red;
+}
+
+/* DEATH ANIMATION */
+.dead{
+animation:die .4s forwards;
+}
+@keyframes die{
+0%{transform:scale(1);opacity:1;}
+50%{transform:scale(1.5);filter:brightness(3);}
+100%{transform:scale(0);opacity:0;filter:blur(4px);}
+}
+
+/* UI */
+.ui{
+position:absolute;
+top:10px;
+left:10px;
+color:#38bdf8;
+}
+.health{
+position:absolute;
+top:30px;
+left:10px;
+color:#f87171;
+}
+
+/* START */
+.start{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+display:flex;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+background:#000c;
+color:white;
+}
+.start button{
+padding:12px 30px;
+font-size:20px;
+border:none;
+background:#22c55e;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* MOBILE */
+.controls{
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+display:none;
+gap:10px;
+}
+.controls button{
+width:60px;
+height:60px;
+font-size:22px;
+border:none;
+border-radius:10px;
+background:#1e293b;
+color:white;
+}
+@media(max-width:768px){
+.controls{display:flex;}
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="game" id="game">
+
+<div class="ui">
+Score: <span id="score">0</span> |
+Level: <span id="level">1</span>
+</div>
+
+<div class="health">
+Health: <span id="health">5</span>
+</div>
+
+<div class="player" id="player"></div>
+
+<div class="start" id="start">
+<h1>Zombie Survival</h1>
+<button onclick="startGame()">Start</button>
+</div>
+
+</div>
+
+<div class="controls">
+<button onclick="moveLeft()">⬅</button>
+<button onclick="moveUp()">⬆</button>
+<button onclick="moveDown()">⬇</button>
+<button onclick="moveRight()">➡</button>
+<button onclick="shoot()">🔫</button>
+</div>
+
+<script>
+
+let game=document.getElementById("game")
+let player=document.getElementById("player")
+let start=document.getElementById("start")
+
+let scoreText=document.getElementById("score")
+let healthText=document.getElementById("health")
+let levelText=document.getElementById("level")
+
+let x=window.innerWidth/2
+let y=window.innerHeight/2
+
+let dx=0, dy=0
+let dirX=0, dirY=-1 // direction
+let score=0, level=1, health=5
+let gameRunning=false
+
+function startGame(){
+start.style.display="none"
+gameRunning=true
+spawnZombie()
+}
+
+/* MOVE */
+
+function moveLeft(){dx=-5;dy=0; dirX=-1; dirY=0}
+function moveRight(){dx=5;dy=0; dirX=1; dirY=0}
+function moveUp(){dy=-5;dx=0; dirX=0; dirY=-1}
+function moveDown(){dy=5;dx=0; dirX=0; dirY=1}
+
+document.addEventListener("keydown",e=>{
+if(e.key==="ArrowLeft") moveLeft()
+if(e.key==="ArrowRight") moveRight()
+if(e.key==="ArrowUp") moveUp()
+if(e.key==="ArrowDown") moveDown()
+if(e.code==="Space") shoot()
+})
+
+setInterval(()=>{
+if(!gameRunning) return
+x+=dx
+y+=dy
+player.style.left=x+"px"
+player.style.top=y+"px"
+},20)
+
+/* SHOOT (DIRECTION BASED) */
+
+function shoot(){
+
+let bullet=document.createElement("div")
+bullet.className="bullet"
+
+bullet.style.left=x+12+"px"
+bullet.style.top=y+"px"
+
+game.appendChild(bullet)
+
+let move=setInterval(()=>{
+
+bullet.style.left=bullet.offsetLeft + dirX*10 + "px"
+bullet.style.top=bullet.offsetTop + dirY*10 + "px"
+
+let zombies=document.querySelectorAll(".zombie,.boss")
+
+zombies.forEach(z=>{
+
+if(
+bullet.offsetTop<z.offsetTop+40 &&
+bullet.offsetLeft<z.offsetLeft+40 &&
+bullet.offsetLeft>z.offsetLeft
+){
+
+let hp = z.getAttribute("hp")
+hp--
+
+z.setAttribute("hp", hp)
+
+/* HIT EFFECT */
+z.style.transform="scale(1.2)"
+setTimeout(()=>z.style.transform="scale(1)",100)
+
+bullet.remove()
+clearInterval(move)
+
+if(hp<=0){
+
+z.classList.add("dead")
+
+setTimeout(()=>z.remove(),400)
+
+score++
+scoreText.innerText=score
+
+if(score%10===0){
+level++
+levelText.innerText=level
+}
+
+}
+
+}
+
+})
+
+},20)
+
+}
+
+/* SPAWN */
+
+function spawnZombie(){
+
+setInterval(()=>{
+
+if(!gameRunning) return
+
+let z
+
+if(level%5===0){
+z=document.createElement("div")
+z.className="boss"
+z.setAttribute("hp",5)
+}else{
+z=document.createElement("div")
+z.className="zombie"
+z.setAttribute("hp",2)
+}
+
+z.style.left=Math.random()*window.innerWidth+"px"
+z.style.top="-40px"
+
+game.appendChild(z)
+
+let move=setInterval(()=>{
+
+let zx=z.offsetLeft
+let zy=z.offsetTop
+
+if(x>zx) zx+=2+level
+if(x<zx) zx-=2+level
+if(y>zy) zy+=2+level
+if(y<zy) zy-=2+level
+
+z.style.left=zx+"px"
+z.style.top=zy+"px"
+
+if(
+zx<x+30 &&
+zx+40>x &&
+zy<y+30 &&
+zy+40>y
+){
+
+health--
+healthText.innerText=health
+z.remove()
+
+if(health<=0){
+gameOver()
+}
+
+}
+
+},30)
+
+},1500)
+
+}
+
+/* GAME OVER */
+
+function gameOver(){
+gameRunning=false
+start.style.display="flex"
+
+start.innerHTML=`
+<h1>Game Over</h1>
+<p>Score: ${score}</p>
+<button onclick="location.reload()">Restart</button>
+`
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fruit Master Final</title>
+
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        text-align: center;
+        color: #fff;
+
+        background: linear-gradient(-45deg, #ff6b6b, #feca57, #48dbfb, #1dd1a1);
+        background-size: 400% 400%;
+        animation: bg 10s infinite;
+      }
+
+      @keyframes bg {
+        0% {
+          background-position: 0%;
+        }
+        50% {
+          background-position: 100%;
+        }
+        100% {
+          background-position: 0%;
+        }
+      }
+
+      .game {
+        max-width: 420px;
+        margin: auto;
+        padding: 20px;
+      }
+
+      /* GLASS CARD */
+      .card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        padding: 15px;
+        border-radius: 15px;
+        margin-bottom: 15px;
+      }
+
+      /* 🍎 FRUITS (NO GRID, FREE FLOW) */
+      .fruits {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 18px;
+      }
+
+      /* BIG BUTTONS */
+      .fruits button {
+        width: 80px;
+        height: 80px;
+        font-size: 32px;
+        border: none;
+        border-radius: 18px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.2);
+        transition: 0.2s;
+      }
+
+      .fruits button:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 15px #ac4141;
+      } 
+
+      /* PLATE */
+      .plate {
+        font-size: 24px;
+        min-height: 50px;
+      }
+
+      /* BUTTONS */
+      button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      .submit {
+        background: lime;
+      }
+      .clear {
+        background: #888;
+      }
+      .undo {
+        background: orange;
+        margin-left: 5px;
+      }
+
+      .score,
+      .level,
+      .lives {
+        margin-top: 10px;
+      }
+
+      /* TIMER */
+      .timerBar {
+        height: 10px;
+        background: #222;
+        border-radius: 10px;
+      }
+
+      .timerFill {
+        height: 100%;
+        width: 100%;
+        background: cyan;
+        transition: 1s linear;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game">
+      <h1>🍓 Fruit Master</h1>
+
+      <div class="card" id="order"></div>
+
+      <div class="fruits">
+        <button onclick="add('🍎')">🍎</button>
+        <button onclick="add('🍌')">🍌</button>
+        <button onclick="add('🍊')">🍊</button>
+        <button onclick="add('🍇')">🍇</button>
+        <button onclick="add('🍉')">🍉</button>
+        <button onclick="add('🍓')">🍓</button>
+        <button onclick="add('🍍')">🍍</button>
+        <button onclick="add('🍒')">🍒</button>
+        <button onclick="add('🍐')">🍐</button>
+        <button onclick="add('🍑')">🍑</button>
+        <button onclick="add('🍅')">🍅</button>
+        <button onclick="add('🌽')">🌽</button>
+         <button onclick="add('🍎')">🍎</button>
+        <button onclick="add('🍌')">🍌</button>
+        <button onclick="add('🍊')">🍊</button>
+        <button onclick="add('🍇')">🍇</button>
+      </div>
+
+      <div class="card plate" id="plate"></div>
+
+      <button class="submit" onclick="check()">Serve</button>
+      <button class="clear" onclick="clearPlate()">Clear</button>
+      <button class="undo" onclick="undo()">↩️</button>
+
+      <div class="score" id="score">Score: 0</div>
+      <div class="level" id="level">Level: 1</div>
+      <div class="lives" id="lives">❤️❤️❤️</div>
+
+      <div class="timerBar">
+        <div class="timerFill" id="timerFill"></div>
+      </div>
+    </div>
+
+    <script>
+      let allFruits = [
+        ["🍎", "🍌", "🍊", "🍇"],
+        ["🍉", "🍓", "🍍", "🍒"],
+        ["🍐", "🍑", "🍅", "🌽"],
+         ["🍎", "🍌", "🍊", "🍇"]
+      ];
+
+      let fruits = [];
+      let order = [];
+      let plate = [];
+
+      let score = 0;
+      let level = 1;
+      let lives = 3;
+
+      let time = 10;
+      let maxTime = 10;
+
+      /* BG COLORS */
+      let bgColors = [
+        "linear-gradient(-45deg,#ff6b6b,#feca57,#48dbfb,#1dd1a1)",
+        "linear-gradient(-45deg,#6366f1,#a855f7,#ec4899,#f43f5e)",
+        "linear-gradient(-45deg,#22c55e,#4ade80,#16a34a,#15803d)",
+        "linear-gradient(-45deg,#f97316,#fb923c,#ea580c,#c2410c)",
+        "linear-gradient(-45deg,#0ea5e9,#38bdf8,#0284c7,#0369a1)",
+      ];
+
+      /* SET LEVEL DATA */
+      function updateLevel() {
+        let index = (level - 1) % allFruits.length;
+        fruits = allFruits[index];
+
+        document.body.style.background = bgColors[index];
+      }
+
+      /* NEW ORDER */
+      function newOrder() {
+        order = [];
+        plate = [];
+        document.getElementById("plate").innerText = "";
+
+        let length = Math.max(3, level + 1); // 👈 minimum 3 items
+
+        for (let i = 0; i < length; i++) {
+          order.push(fruits[Math.floor(Math.random() * fruits.length)]);
+        }
+
+        document.getElementById("order").innerText =
+          "Order: " + order.join(" ");
+      }
+
+      /* ADD */
+      function add(f) {
+        plate.push(f);
+        document.getElementById("plate").innerText = plate.join(" ");
+      }
+
+      /* UNDO */
+      // ***pop  Array 1 item remove
+      function undo() {
+        plate.pop();
+        document.getElementById("plate").innerText = plate.join(" ");
+      }
+
+      /* CLEAR */
+      function clearPlate() {
+        plate = [];
+        document.getElementById("plate").innerText = "";
+      }
+
+      /* CHECK */
+      function check() {
+        if (plate.join("") === order.join("")) {
+          score++;
+
+          if (score % 3 === 0) {
+            level++;
+            alert("🚀 Level Up!");
+            updateLevel(); // 👈 bg + fruits change
+          }
+        } else {
+          lives--;
+          alert("❌ Wrong!");
+
+          if (lives <= 0) {
+            alert("💀 Game Over! Score: " + score);
+            location.reload();
+          }
+        }
+
+        document.getElementById("score").innerText = "Score: " + score;
+        document.getElementById("level").innerText = "Level: " + level;
+        document.getElementById("lives").innerText = "❤️".repeat(lives);
+
+        newOrder();
+        resetTimer();
+      }
+
+      /* TIMER */
+      setInterval(() => {
+        time--;
+
+        document.getElementById("timerFill").style.width =
+          (time / maxTime) * 100 + "%";
+
+        if (time <= 0) {
+          lives--;
+          alert("⏰ Time Up!");
+
+          if (lives <= 0) {
+            alert("💀 Game Over!");
+            location.reload();
+          }
+
+          document.getElementById("lives").innerText = "❤️".repeat(lives);
+
+          newOrder();
+          resetTimer();
+        }
+      }, 1000);
+
+      function resetTimer() {
+        maxTime = Math.max(4, 10 - level);
+        time = maxTime;
+      }
+
+      /* START */
+      updateLevel(); // 👈 initial fruits + bg
+      newOrder();
+    </script>
+  </body>
+</html>

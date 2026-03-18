@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Real Chess Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        background: #1e272e;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      #menu {
+        margin-bottom: 10px;
+      }
+      button {
+        padding: 8px 14px;
+        margin: 4px;
+        cursor: pointer;
+        border: none;
+        border-radius: 6px;
+        font-weight: bold;
+        background-color: #2f3542;
+        color: #fff;
+      }
+
+      #top {
+        display: flex;
+        gap: 40px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      #board {
+        display: grid;
+        grid-template-columns: repeat(8, 12.5%);
+        width: 100%;
+        max-width: 480px;
+        aspect-ratio: 1;
+        border: 4px solid #333;
+      }
+
+      .square {
+        width: 100%;
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: clamp(16px, 5vw, 38px);
+        cursor: pointer;
+      }
+
+      .white {
+        background: #f0d9b5;
+      }
+      .black {
+        background: #b58863;
+      }
+
+      .white-piece {
+        color: #fff;
+        text-shadow: 0 0 3px #000;
+      }
+      .black-piece {
+        color: black;
+      }
+
+      .selected {
+        outline: 3px solid yellow;
+      }
+      .move {
+        box-shadow: inset 0 0 0 4px #2ed573;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="menu">
+      <button onclick="setMode('pvp')">2 Player</button>
+      <button onclick="setMode('pvc')">Vs Computer</button>
+      <button onclick="resetGame()">Reset</button>
+    </div>
+
+    <div id="top">
+      <div>White ⏱ <span id="wtime">10:00</span></div>
+      <div>Black ⏱ <span id="btime">10:00</span></div>
+    </div>
+
+    <div id="board"></div>
+    <h3 id="turn">Turn: White</h3>
+
+    <script>
+      const boardDiv = document.getElementById("board");
+      const turnText = document.getElementById("turn");
+      const wtimeEl = document.getElementById("wtime");
+      const btimeEl = document.getElementById("btime");
+
+      let mode = "pvp";
+      let turn = "white";
+      let selected = null;
+
+      let whiteTime = 600;
+      let blackTime = 600;
+      let timer = null;
+
+      const pieces = {
+        r: "♜",
+        n: "♞",
+        b: "♝",
+        q: "♛",
+        k: "♚",
+        p: "♟",
+        R: "♖",
+        N: "♘",
+        B: "♗",
+        Q: "♕",
+        K: "♔",
+        P: "♙",
+      };
+
+      let startBoard = [
+        "r",
+        "n",
+        "b",
+        "q",
+        "k",
+        "b",
+        "n",
+        "r",
+        "p",
+        "p",
+        "p",
+        "p",
+        "p",
+        "p",
+        "p",
+        "p",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "P",
+        "P",
+        "P",
+        "P",
+        "P",
+        "P",
+        "P",
+        "P",
+        "R",
+        "N",
+        "B",
+        "Q",
+        "K",
+        "B",
+        "N",
+        "R",
+      ];
+
+      let board = [...startBoard];
+
+      function setMode(m) {
+        mode = m;
+        resetGame();
+      }
+
+      function resetGame() {
+        board = [...startBoard];
+        turn = "white";
+        selected = null;
+        whiteTime = 600;
+        blackTime = 600;
+        turnText.innerText = "Turn: White";
+        updateTime();
+        startTimer();
+        draw();
+      }
+
+      function startTimer() {
+        clearInterval(timer);
+        timer = setInterval(() => {
+          if (turn === "white") whiteTime--;
+          else blackTime--;
+          updateTime();
+          if (whiteTime <= 0) {
+            alert("Black Wins on Time!");
+            clearInterval(timer);
+          }
+          if (blackTime <= 0) {
+            alert("White Wins on Time!");
+            clearInterval(timer);
+          }
+        }, 1000);
+      }
+
+      function updateTime() {
+        wtimeEl.innerText = format(whiteTime);
+        btimeEl.innerText = format(blackTime);
+      }
+
+      function format(t) {
+        return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+      }
+
+      function draw() {
+        boardDiv.innerHTML = "";
+        board.forEach((p, i) => {
+          const sq = document.createElement("div");
+          sq.className =
+            "square " + ((Math.floor(i / 8) + i) % 2 ? "black" : "white");
+
+          if (p) {
+            const sp = document.createElement("span");
+            sp.innerText = pieces[p];
+            sp.className =
+              p === p.toUpperCase() ? "white-piece" : "black-piece";
+            sq.appendChild(sp);
+          }
+
+          sq.onclick = () => clickSquare(i);
+          boardDiv.appendChild(sq);
+        });
+      }
+
+      function clickSquare(i) {
+        if (mode === "pvc" && turn === "black") return;
+
+        if (selected === null) {
+          if (board[i] && isTurnPiece(board[i])) {
+            selected = i;
+            draw();
+            boardDiv.children[i].classList.add("selected");
+            showMoves(i);
+          }
+        } else {
+          if (isValidMove(selected, i)) {
+            const backup = [...board];
+            board[i] = board[selected];
+            board[selected] = "";
+            if (isKingInCheck(turn, board)) {
+              alert("You can't move into check!");
+              board = backup;
+            } else {
+              selected = null;
+              changeTurn();
+              draw();
+              if (mode === "pvc" && turn === "black") setTimeout(aiMove, 300);
+            }
+          } else {
+            selected = null;
+            draw();
+          }
+        }
+        checkGameOver();
+      }
+
+      function showMoves(from) {
+        board.forEach((_, to) => {
+          if (isValidMove(from, to)) {
+            boardDiv.children[to].classList.add("move");
+          }
+        });
+      }
+
+      function isTurnPiece(p) {
+        return turn === "white" ? p === p.toUpperCase() : p === p.toLowerCase();
+      }
+
+      function changeTurn() {
+        turn = turn === "white" ? "black" : "white";
+        turnText.innerText =
+          "Turn: " + turn.charAt(0).toUpperCase() + turn.slice(1);
+      }
+
+      function isValidMove(f, t) {
+        if (f === t) return false;
+        const p = board[f];
+        const target = board[t];
+        if (target && isTurnPiece(target)) return false;
+
+        const fx = f % 8,
+          fy = Math.floor(f / 8);
+        const tx = t % 8,
+          ty = Math.floor(t / 8);
+        const dx = tx - fx,
+          dy = ty - fy;
+
+        const clear = (sx, sy) => {
+          let x = fx + sx,
+            y = fy + sy;
+          while (x !== tx || y !== ty) {
+            if (board[y * 8 + x]) return false;
+            x += sx;
+            y += sy;
+          }
+          return true;
+        };
+
+        switch (p.toLowerCase()) {
+          case "p": {
+            let dir = p === "P" ? -1 : 1;
+            let startRow = p === "P" ? 6 : 1;
+            if (dx === 0 && dy === dir && !target) return true;
+            if (
+              dx === 0 &&
+              dy === 2 * dir &&
+              fy === startRow &&
+              !target &&
+              !board[f + 8 * dir]
+            )
+              return true;
+            if (Math.abs(dx) === 1 && dy === dir && target) return true;
+            return false;
+          }
+          case "r":
+            if (dx === 0) return clear(0, dy > 0 ? 1 : -1);
+            if (dy === 0) return clear(dx > 0 ? 1 : -1, 0);
+            return false;
+          case "b":
+            if (Math.abs(dx) === Math.abs(dy))
+              return clear(dx > 0 ? 1 : -1, dy > 0 ? 1 : -1);
+            return false;
+          case "q":
+            if (dx === 0 || dy === 0)
+              return clear(
+                dx === 0 ? 0 : dx > 0 ? 1 : -1,
+                dy === 0 ? 0 : dy > 0 ? 1 : -1,
+              );
+            if (Math.abs(dx) === Math.abs(dy))
+              return clear(dx > 0 ? 1 : -1, dy > 0 ? 1 : -1);
+            return false;
+          case "n":
+            return Math.abs(dx * dy) === 2;
+          case "k":
+            return Math.abs(dx) <= 1 && Math.abs(dy) <= 1;
+        }
+      }
+
+      function isKingInCheck(color, b) {
+        const king = color === "white" ? "K" : "k";
+        const kingIndex = b.findIndex((p) => p === king);
+        for (let i = 0; i < 64; i++) {
+          const p = b[i];
+          if (
+            p &&
+            (color === "white" ? p === p.toLowerCase() : p === p.toUpperCase())
+          ) {
+            if (isValidMoveForCheck(i, kingIndex, b)) return true;
+          }
+        }
+        return false;
+      }
+
+      function isValidMoveForCheck(f, t, b) {
+        const p = b[f];
+        const target = b[t];
+        if (f === t) return false;
+        if (
+          target &&
+          ((p === p.toUpperCase() && target === target.toUpperCase()) ||
+            (p === p.toLowerCase() && target === target.toLowerCase()))
+        )
+          return false;
+
+        const fx = f % 8,
+          fy = Math.floor(f / 8);
+        const tx = t % 8,
+          ty = Math.floor(t / 8);
+        const dx = tx - fx,
+          dy = ty - fy;
+
+        const clear = (sx, sy) => {
+          let x = fx + sx,
+            y = fy + sy;
+          while (x !== tx || y !== ty) {
+            if (b[y * 8 + x]) return false;
+            x += sx;
+            y += sy;
+          }
+          return true;
+        };
+
+        switch (p.toLowerCase()) {
+          case "p": {
+            let dir = p === "P" ? -1 : 1;
+            if (Math.abs(dx) === 1 && dy === dir) return true;
+            if (dx === 0 && dy === dir) return !b[t];
+            return false;
+          }
+          case "r":
+            if (dx === 0) return clear(0, dy > 0 ? 1 : -1);
+            if (dy === 0) return clear(dx > 0 ? 1 : -1, 0);
+            return false;
+          case "b":
+            if (Math.abs(dx) === Math.abs(dy))
+              return clear(dx > 0 ? 1 : -1, dy > 0 ? 1 : -1);
+            return false;
+          case "q":
+            if (dx === 0 || dy === 0)
+              return clear(
+                dx === 0 ? 0 : dx > 0 ? 1 : -1,
+                dy === 0 ? 0 : dy > 0 ? 1 : -1,
+              );
+            if (Math.abs(dx) === Math.abs(dy))
+              return clear(dx > 0 ? 1 : -1, dy > 0 ? 1 : -1);
+            return false;
+          case "n":
+            return Math.abs(dx * dy) === 2;
+          case "k":
+            return Math.abs(dx) <= 1 && Math.abs(dy) <= 1;
+        }
+      }
+
+      function aiMove() {
+        let moves = [];
+        board.forEach((p, i) => {
+          if (p && p === p.toLowerCase()) {
+            board.forEach((_, j) => {
+              if (isValidMove(i, j)) moves.push([i, j]);
+            });
+          }
+        });
+        if (!moves.length) return;
+        const m = moves[Math.floor(Math.random() * moves.length)];
+        const backup = [...board];
+        board[m[1]] = board[m[0]];
+        board[m[0]] = "";
+        if (isKingInCheck("black", board)) {
+          board = backup;
+          setTimeout(aiMove, 100);
+          return;
+        }
+        changeTurn();
+        draw();
+        checkGameOver();
+      }
+
+      function checkGameOver() {
+        if (isKingInCheck(turn, board)) {
+          let hasMoves = false;
+          for (let i = 0; i < 64; i++) {
+            if (board[i] && isTurnPiece(board[i])) {
+              for (let j = 0; j < 64; j++) {
+                const backup = [...board];
+                if (isValidMove(i, j)) {
+                  board[j] = board[i];
+                  board[i] = "";
+                  if (!isKingInCheck(turn, board)) hasMoves = true;
+                  board = [...backup];
+                }
+              }
+            }
+          }
+          if (!hasMoves) {
+            alert(turn === "white" ? "Black Wins!" : "White Wins!");
+            clearInterval(timer);
+          } else alert("Check!");
+        }
+      }
+
+      draw();
+      updateTime();
+      startTimer();
+    </script>
+  </body>
+</html>

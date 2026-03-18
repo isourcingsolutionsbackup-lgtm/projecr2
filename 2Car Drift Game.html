@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Car Drift Game - Restart on Game Over</title>
+isourcingsolutions.backup@gmail.com
+<style>
+body{
+margin:0;
+background:#111;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+font-family:sans-serif;
+}
+
+.game{
+position:relative;
+width:350px;
+height:600px;
+background:#2c2c2c;
+overflow:hidden;
+border:4px solid white;
+}
+
+/* ROAD CENTER LINE */
+.line{
+position:absolute;
+width:10px;
+height:80px;
+background:white;
+left:170px;
+animation:lineMove 1s linear infinite;
+}
+.line:nth-child(2){ animation-delay:.5s; }
+
+/* zebra crossing */
+.zebra{
+position:absolute;
+width:100%;
+height:20px;
+background:white;
+opacity:.7;
+animation:zebraMove 2s linear infinite;
+}
+
+@keyframes lineMove{ from{top:-100px} to{top:600px} }
+@keyframes zebraMove{ from{top:-50px} to{top:600px} }
+
+/* PLAYER CAR */
+.car{
+position:absolute;
+width:60px;
+height:100px;
+bottom:20px;
+left:140px;
+border-radius:15px;
+background:red;
+box-shadow:0 5px 15px rgba(0,0,0,.7);
+transition: background 0.5s;
+}
+.car::before{
+content:"";
+position:absolute;
+width:50px;
+height:40px;
+background:skyblue;
+top:10px;
+left:5px;
+border-radius:8px;
+}
+.car::after{
+content:"";
+position:absolute;
+width:60px;
+height:15px;
+bottom:0;
+left:0;
+background:#333;
+border-radius:0 0 10px 10px;
+}
+.wheel{position:absolute;width:15px;height:15px;background:black;border-radius:50%;bottom:5px;}
+.wheel.left{left:5px;}
+.wheel.right{right:5px;}
+
+/* ENEMY CAR */
+.enemy{
+position:absolute;
+width:60px;
+height:100px;
+top:-120px;
+border-radius:15px;
+background:yellow;
+box-shadow:0 5px 15px rgba(0,0,0,.7);
+}
+.enemy::before{
+content:"";
+position:absolute;
+width:50px;
+height:40px;
+background:skyblue;
+top:10px;
+left:5px;
+border-radius:8px;
+}
+.enemy::after{
+content:"";
+position:absolute;
+width:60px;
+height:15px;
+bottom:0;
+left:0;
+background:#333;
+border-radius:0 0 10px 10px;
+}
+
+/* COINS */
+.coin{
+position:absolute;
+width:30px;
+height:30px;
+background:gold;
+border-radius:50%;
+top:-50px;
+box-shadow:0 0 10px gold;
+}
+
+/* SCORE & LEVEL */
+.score{position:absolute;top:10px;left:10px;color:white;font-size:20px;}
+.level{position:absolute;top:10px;right:10px;color:white;font-size:20px;}
+
+/* LEVEL UP ANIMATION */
+.levelUp{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+color:yellow;
+font-size:40px;
+font-weight:bold;
+opacity:0;
+animation:pop 1s;
+}
+@keyframes pop{
+0%{transform:translate(-50%,-50%) scale(.5);opacity:0}
+50%{transform:translate(-50%,-50%) scale(1.4);opacity:1}
+100%{transform:translate(-50%,-50%) scale(1);opacity:0}
+}
+</style>
+</head>
+<body>
+
+<div class="game" id="game">
+<div class="line"></div>
+<div class="line"></div>
+<div class="zebra"></div>
+
+<div class="car" id="car">
+  <div class="wheel left"></div>
+  <div class="wheel right"></div>
+</div>
+
+<div class="score" id="score">Score:0</div>
+<div class="level" id="level">Level:1</div>
+</div>
+
+
+
+</body><script>
+
+function startGame(){
+
+let car=document.getElementById("car")
+let game=document.getElementById("game")
+let scoreText=document.getElementById("score")
+let levelText=document.getElementById("level")
+
+let carX=140
+let score=0
+let level=1
+let speed=5
+let gameRunning=true
+
+let carColors=["red","blue","green","purple","orange"]
+
+document.addEventListener("keydown",keyHandler)
+
+function keyHandler(e){
+if(!gameRunning) return
+if(e.key==="ArrowLeft") carX-=70
+if(e.key==="ArrowRight") carX+=70
+if(carX<0) carX=0
+if(carX>280) carX=280
+car.style.left=carX+"px"
+}
+
+function levelAnimation(){
+let text=document.createElement("div")
+text.innerText="LEVEL "+level
+text.classList.add("levelUp")
+game.appendChild(text)
+setTimeout(()=>{ text.remove() },1000)
+}
+
+/* COINS */
+function coinCreate(){
+if(!gameRunning) return
+let coin=document.createElement("div")
+coin.classList.add("coin")
+coin.style.left=Math.floor(Math.random()*5)*70+"px"
+game.appendChild(coin)
+
+let y=-50
+
+let move=setInterval(()=>{
+
+if(!gameRunning){
+coin.remove()
+clearInterval(move)
+return
+}
+
+y+=speed
+coin.style.top=y+"px"
+
+let carRect=car.getBoundingClientRect()
+let coinRect=coin.getBoundingClientRect()
+
+if(coinRect.bottom>carRect.top &&
+coinRect.top<carRect.bottom &&
+coinRect.left<carRect.right &&
+coinRect.right>carRect.left){
+
+score++
+scoreText.innerText="Score:"+score
+
+if(score%20===0){
+level++
+speed+=2
+levelText.innerText="Level:"+level
+car.style.background=carColors[level%carColors.length]
+levelAnimation()
+}
+
+coin.remove()
+clearInterval(move)
+
+}
+
+if(y>600){
+coin.remove()
+clearInterval(move)
+}
+
+},20)
+
+}
+
+/* ENEMY */
+function enemyCar(){
+
+if(!gameRunning) return
+
+let enemy=document.createElement("div")
+enemy.classList.add("enemy")
+enemy.innerHTML='<div class="wheel left"></div><div class="wheel right"></div>'
+enemy.style.left=Math.floor(Math.random()*5)*70+"px"
+game.appendChild(enemy)
+
+let y=-120
+
+let move=setInterval(()=>{
+
+if(!gameRunning){
+enemy.remove()
+clearInterval(move)
+return
+}
+
+y+=speed+2
+enemy.style.top=y+"px"
+
+let carRect=car.getBoundingClientRect()
+let enemyRect=enemy.getBoundingClientRect()
+
+if(enemyRect.bottom>carRect.top &&
+enemyRect.top<carRect.bottom &&
+enemyRect.left<carRect.right &&
+enemyRect.right>carRect.left){
+
+gameRunning=false
+
+setTimeout(()=>{
+
+alert("Game Over\nScore: "+score)
+
+resetGame()
+
+},100)
+
+}
+
+if(y>650){
+enemy.remove()
+clearInterval(move)
+}
+
+},20)
+
+}
+
+/* RESET GAME */
+
+function resetGame(){
+
+document.removeEventListener("keydown",keyHandler)
+
+let enemies=document.querySelectorAll(".enemy")
+let coins=document.querySelectorAll(".coin")
+
+enemies.forEach(e=>e.remove())
+coins.forEach(c=>c.remove())
+
+scoreText.innerText="Score:0"
+levelText.innerText="Level:1"
+
+startGame()
+
+}
+
+setInterval(coinCreate,1500)
+setInterval(enemyCar,2000)
+
+}
+
+startGame()
+
+</script>
+</html>

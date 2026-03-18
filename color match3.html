@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title> Color Shooter</title>
+<style>
+body{
+  margin:0;
+  background:linear-gradient(to bottom,#000,#222);
+  text-align:center;
+  color:white;
+  font-family:Arial;
+}
+canvas{
+  background:#111;
+  display:block;
+  margin:10px auto;
+  border:3px solid #fff;
+  border-radius:10px;
+}
+#info{
+  font-size:18px;
+  margin-top:10px;
+}
+</style>
+</head>
+<body>
+
+<h2> Color Shooter 🔥</h2>
+<div id="info"></div>
+<canvas id="game" width="420" height="650"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const info=document.getElementById("info");
+
+const cols=7;
+const rows=9;
+const size=60;
+const colors=["red","lime","cyan"];
+
+let grid=[];
+let bullet=null;
+let level=1;
+let score=0;
+let highScore=0;
+let lives=3;
+let target=10;
+let popCount=0;
+
+let levelComplete=false;
+let levelAnimTime=0;
+
+let shooter={
+  col:3,
+  color:randomColor()
+};
+
+let particles=[];
+
+function randomColor(){
+  return colors[Math.floor(Math.random()*3)];
+}
+
+function initGrid(){
+  grid=[];
+  for(let r=0;r<rows;r++){
+    grid[r]=[];
+    for(let c=0;c<cols;c++){
+      grid[r][c]=r<4?randomColor():null;
+    }
+  }
+}
+initGrid();
+
+function updateInfo(){
+  info.innerHTML=
+  "Level: "+level+
+  " | Shoot: "+(target-popCount)+
+  " | Score: "+score+
+  " | High: "+highScore+
+  " | Lives: ❤️".repeat(lives);
+}
+
+function levelUp(){
+  levelComplete=true;
+  levelAnimTime=120; // 2 sec animation
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Grid
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(grid[r][c]){
+        ctx.fillStyle=grid[r][c];
+        ctx.beginPath();
+        ctx.arc(c*size+30,r*size+30,25,0,Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Shooter
+  ctx.fillStyle="white";
+  ctx.fillRect(shooter.col*size+25,rows*size-10,10,20);
+
+  ctx.fillStyle=shooter.color;
+  ctx.beginPath();
+  ctx.arc(shooter.col*size+30,rows*size+30,25,0,Math.PI*2);
+  ctx.fill();
+
+  // Bullet
+  if(bullet){
+    ctx.fillStyle=bullet.color;
+    ctx.beginPath();
+    ctx.arc(bullet.col*size+30,bullet.row*size+30,25,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // Particles
+  particles.forEach(p=>{
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x,p.y,5,5);
+  });
+
+  // Level Complete Text
+  if(levelComplete){
+    ctx.fillStyle="yellow";
+    ctx.font="40px Arial";
+    ctx.fillText("LEVEL COMPLETE!", 40, canvas.height/2);
+  }
+}
+
+function update(){
+
+  // LEVEL COMPLETE ANIMATION
+  if(levelComplete){
+    levelAnimTime--;
+
+    for(let i=0;i<5;i++){
+      particles.push({
+        x: Math.random()*canvas.width,
+        y: Math.random()*canvas.height,
+        vx:(Math.random()-0.5)*6,
+        vy:(Math.random()-0.5)*6,
+        life:40,
+        color:randomColor()
+      });
+    }
+
+    if(levelAnimTime<=0){
+      levelComplete=false;
+      level++;
+      if(level>10){
+        alert("🏆 You Finished All Levels!");
+        level=1;
+      }
+      popCount=0;
+      target=10+(level-1)*3;
+      initGrid();
+    }
+    return;
+  }
+
+  // Bullet movement
+  if(bullet){
+    bullet.row-=0.2;
+
+    if(bullet.row<=0){
+      placeBullet();
+    }else{
+      let r=Math.floor(bullet.row);
+      if(grid[r] && grid[r][bullet.col]){
+        bullet.row=r+1;
+        placeBullet();
+      }
+    }
+  }
+
+  // Update particles
+  particles.forEach(p=>{
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.life--;
+  });
+  particles=particles.filter(p=>p.life>0);
+}
+
+function placeBullet(){
+  let r=Math.floor(bullet.row);
+  if(r<0) r=0;
+
+  if(grid[r][bullet.col]){
+    lives--;
+    if(lives<=0){
+      alert("💀 Game Over");
+      resetGame();
+      return;
+    }
+  }else{
+    grid[r][bullet.col]=bullet.color;
+    checkMatch();
+  }
+
+  bullet=null;
+  shooter.color=randomColor();
+}
+
+function createExplosion(x,y,color){
+  for(let i=0;i<15;i++){
+    particles.push({
+      x:x,
+      y:y,
+      vx:(Math.random()-0.5)*4,
+      vy:(Math.random()-0.5)*4,
+      life:30,
+      color:color
+    });
+  }
+}
+
+function checkMatch(){
+  let popped=false;
+
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols-2;c++){
+      let col=grid[r][c];
+      if(col &&
+         grid[r][c+1]===col &&
+         grid[r][c+2]===col){
+        for(let i=0;i<3;i++){
+          createExplosion((c+i)*size+30,r*size+30,col);
+          grid[r][c+i]=null;
+        }
+        popped=true;
+      }
+    }
+  }
+
+  for(let c=0;c<cols;c++){
+    for(let r=0;r<rows-2;r++){
+      let col=grid[r][c];
+      if(col &&
+         grid[r+1][c]===col &&
+         grid[r+2][c]===col){
+        for(let i=0;i<3;i++){
+          createExplosion(c*size+30,(r+i)*size+30,col);
+          grid[r+i][c]=null;
+        }
+        popped=true;
+      }
+    }
+  }
+
+  if(popped){
+    popCount++;
+    score+=10*level;
+    if(score>highScore) highScore=score;
+    if(popCount>=target){
+      levelUp();
+    }
+  }
+}
+
+function resetGame(){
+  level=1;
+  score=0;
+  lives=3;
+  popCount=0;
+  target=10;
+  initGrid();
+}
+
+// Arrow keys movement
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft")
+    shooter.col=Math.max(0,shooter.col-1);
+
+  if(e.key==="ArrowRight")
+    shooter.col=Math.min(cols-1,shooter.col+1);
+});
+
+// Mouse click shoot
+canvas.addEventListener("click",function(){
+  if(!bullet && !levelComplete){
+    bullet={
+      col:shooter.col,
+      row:rows,
+      color:shooter.color
+    };
+  }
+});
+
+// Mouse move left-right
+canvas.addEventListener("mousemove", function(e){
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+
+  let col = Math.floor(mouseX / size);
+  col = Math.max(0, Math.min(cols - 1, col));
+
+  shooter.col = col;
+});
+
+function gameLoop(){
+  updateInfo();
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+</script>
+
+</body>
+</html>

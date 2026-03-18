@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ultimate Bike Racing Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      /* 300 scrore me level up hoga */
+      body {
+        margin: 0;
+        background: #020617;
+        font-family: Poppins, Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      #gameWrap {
+        position: relative;
+      }
+      canvas {
+        background: #020617;
+        border-radius: 20px;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+      }
+      #hud {
+        position: absolute;
+        top: 12px;
+        left: 14px;
+        right: 14px;
+        display: flex;
+        justify-content: space-between;
+        color: #fff;
+        font-size: 14px;
+        z-index: 5;
+      }
+      #startBtn {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.65);
+        z-index: 10;
+      }
+      #startBtn button {
+        padding: 14px 30px;
+        font-size: 18px;
+        border: none;
+        border-radius: 40px;
+        background: #38bdf8;
+        color: #020617;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      #bikeSelect {
+        position: absolute;
+        bottom: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px;
+        z-index: 6;
+      }
+      .bikeColor {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        cursor: pointer;
+      }
+      .level-up {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        color: #38bdf8;
+        font-size: 48px;
+        font-weight: 700;
+        pointer-events: none;
+        transition:
+          transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+          opacity 0.6s ease-out;
+        opacity: 0;
+        z-index: 20;
+        text-shadow:
+          0 0 20px #38bdf8,
+          0 0 40px #38bdf8;
+      }
+      .level-up.show {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gameWrap">
+      <div class="level-up" id="levelUpText">LEVEL 1</div>
+
+      <div id="bikeSelect">
+        <div
+          class="bikeColor"
+          style="background: #2563eb"
+          onclick="bike.color = '#2563eb'"
+        ></div>
+        <div
+          class="bikeColor"
+          style="background: #dc2626"
+          onclick="bike.color = '#dc2626'"
+        ></div>
+        <div
+          class="bikeColor"
+          style="background: #16a34a"
+          onclick="bike.color = '#16a34a'"
+        ></div>
+        <div
+          class="bikeColor"
+          style="background: #facc15"
+          onclick="bike.color = '#facc15'"
+        ></div>
+      </div>
+
+      <div id="hud">
+        <div>Level: <b id="level">1</b></div>
+        <div>Score: <b id="score">0</b></div>
+        <div>Speed: <b id="speed">3</b></div>
+      </div>
+
+      <div id="startBtn"><button>START RACE</button></div>
+      <canvas id="game" width="380" height="620"></canvas>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const levelEl = document.getElementById("level");
+      const scoreEl = document.getElementById("score");
+      const speedEl = document.getElementById("speed");
+      const startScreen = document.getElementById("startBtn");
+      const levelUpText = document.getElementById("levelUpText");
+
+      let gameRunning = false;
+      let speed = 3,
+        level = 1,
+        score = 0;
+      let displayScore = 0;
+      const maxLevel = 20;
+
+      const bike = {
+        x: canvas.width / 2 - 24,
+        y: canvas.height - 140,
+        w: 48,
+        h: 110,
+        lean: 0,
+        color: "#2563eb",
+      };
+      let nitro = 100,
+        nitroActive = false;
+      let obstacles = [];
+      let roadOffset = 0;
+
+      function spawnObstacle() {
+        obstacles.push({
+          x: Math.random() * (canvas.width - 70),
+          y: -140,
+          w: 70,
+          h: 120,
+          color: ["#ef4444", "#22c55e", "#eab308", "#3b82f6"][
+            Math.floor(Math.random() * 4)
+          ],
+        });
+      }
+
+      function drawRoad() {
+        ctx.fillStyle = "#020617";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        roadOffset += speed;
+        if (roadOffset > 40) roadOffset = 0;
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 4;
+        ctx.setLineDash([20, 20]);
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2, -40 + roadOffset);
+        ctx.lineTo(canvas.width / 2, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function drawBike() {
+        ctx.save();
+        ctx.translate(bike.x + bike.w / 2, bike.y + bike.h / 2);
+        ctx.rotate(bike.lean * 0.35);
+        ctx.translate(-bike.w / 2, -bike.h / 2);
+        /* ROAD SHADOW */
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.beginPath();
+        ctx.ellipse(bike.w / 2, bike.h + 8, 26, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        /* TYRES */
+        ctx.fillStyle = "#020617";
+        ctx.beginPath();
+        ctx.arc(10, 104, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(38, 104, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#9ca3af";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(10, 104, 9, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(38, 104, 9, 0, Math.PI * 2);
+        ctx.stroke();
+        /* SWING ARM */
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(38, 96);
+        ctx.lineTo(26, 72);
+        ctx.stroke();
+        /* ENGINE BLOCK */
+        ctx.fillStyle = "#1e293b";
+        ctx.beginPath();
+        ctx.roundRect(18, 60, 20, 22, 6);
+        ctx.fill();
+        /* FRAME */
+        ctx.strokeStyle = bike.color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(10, 70);
+        ctx.lineTo(26, 46);
+        ctx.lineTo(42, 70);
+        ctx.stroke();
+        /* FUEL TANK */
+        const tank = ctx.createLinearGradient(0, 0, 48, 0);
+        tank.addColorStop(0, bike.color);
+        tank.addColorStop(1, "#ffffff55");
+        ctx.fillStyle = tank;
+        ctx.beginPath();
+        ctx.roundRect(16, 34, 22, 22, 10);
+        ctx.fill();
+        /* SEAT */
+        ctx.fillStyle = "#020617";
+        ctx.beginPath();
+        ctx.roundRect(22, 24, 18, 12, 6);
+        ctx.fill();
+        /* HANDLE BAR */
+        ctx.strokeStyle = "#e5e7eb";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(18, 38);
+        ctx.lineTo(4, 22);
+        ctx.moveTo(36, 38);
+        ctx.lineTo(52, 22);
+        ctx.stroke();
+        /* HEADLIGHT */
+        ctx.fillStyle = "#fde047";
+        ctx.beginPath();
+        ctx.arc(26, 38, 4, 0, Math.PI * 2);
+        ctx.fill();
+        /* EXHAUST */
+        ctx.fillStyle = "#64748b";
+        ctx.fillRect(42, 78, 14, 6);
+        /* NITRO FLAME */
+        if (nitroActive) {
+          const f = ctx.createLinearGradient(0, bike.h, 0, bike.h + 34);
+          f.addColorStop(0, "#7dd3fc");
+          f.addColorStop(1, "#0284c7");
+          ctx.fillStyle = f;
+          ctx.beginPath();
+          ctx.moveTo(22, bike.h);
+          ctx.lineTo(28, bike.h);
+          ctx.lineTo(25, bike.h + 34);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawObstacles() {
+        obstacles.forEach((o) => {
+          ctx.save();
+          ctx.translate(o.x, o.y);
+          ctx.fillStyle = o.color;
+          ctx.beginPath();
+          ctx.roundRect(0, 20, o.w, o.h - 20, 12);
+          ctx.fill();
+          ctx.fillStyle = "#020617";
+          ctx.beginPath();
+          ctx.roundRect(10, 0, o.w - 20, 40, 10);
+          ctx.fill();
+          ctx.fillStyle = "#38bdf8";
+          ctx.fillRect(16, 8, 14, 18);
+          ctx.fillRect(o.w - 30, 8, 14, 18);
+          ctx.fillStyle = "#fde047";
+          ctx.fillRect(8, o.h - 10, 10, 6);
+          ctx.fillRect(o.w - 18, o.h - 10, 10, 6);
+          ctx.fillStyle = "#020617";
+          ctx.beginPath();
+          ctx.arc(12, o.h - 8, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(o.w - 12, o.h - 8, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+      }
+
+      function updateObstacles() {
+        obstacles.forEach((o) => (o.y += speed));
+        obstacles = obstacles.filter((o) => o.y < canvas.height + 120);
+      }
+      function collision() {
+        for (const o of obstacles) {
+          if (
+            bike.x < o.x + o.w &&
+            bike.x + bike.w > o.x &&
+            bike.y < o.y + o.h &&
+            bike.y + bike.h > o.y
+          ) {
+            gameRunning = false;
+            startScreen.style.display = "flex";
+            startScreen.querySelector("button").innerText = "RESTART";
+          }
+        }
+      }
+
+      function showLevelUp() {
+        levelUpText.innerText = `LEVEL ${level}`;
+        levelUpText.classList.add("show");
+        const flashBg = document.createElement("div");
+        flashBg.style.position = "absolute";
+        flashBg.style.top = "0";
+        flashBg.style.left = "0";
+        flashBg.style.width = "100%";
+        flashBg.style.height = "100%";
+        flashBg.style.background =
+          "radial-gradient(circle, #38bdf8 0%, #020617 80%)";
+        flashBg.style.opacity = "0.6";
+        flashBg.style.zIndex = "15";
+        flashBg.style.pointerEvents = "none";
+        document.getElementById("gameWrap").appendChild(flashBg);
+        setTimeout(() => {
+          flashBg.remove();
+          levelUpText.classList.remove("show");
+        }, 1000);
+      }
+
+      function updateGame() {
+        displayScore += (score - displayScore) * 0.05;
+        scoreEl.innerText = Math.floor(displayScore);
+        score++;
+        if (score % 300 === 0 && level < maxLevel) {
+          level++;
+          speed += 1;
+          levelEl.innerText = level;
+          showLevelUp();
+        }
+        speedEl.innerText = speed.toFixed(1);
+      }
+
+      function gameLoop() {
+        if (!gameRunning) return;
+        drawRoad();
+        drawBike();
+        drawObstacles();
+        updateObstacles();
+        collision();
+        updateGame();
+        bike.lean *= 0.85;
+        requestAnimationFrame(gameLoop);
+      }
+
+      setInterval(() => {
+        if (gameRunning) spawnObstacle();
+      }, 900);
+
+      window.addEventListener("keydown", (e) => {
+        if (!gameRunning) return;
+        if (e.key === "ArrowLeft" && bike.x > 10) {
+          bike.x -= 32;
+          bike.lean = -1;
+        }
+        if (e.key === "ArrowRight" && bike.x < canvas.width - bike.w - 10) {
+          bike.x += 32;
+          bike.lean = 1;
+        }
+        if (e.code === "Space") nitroActive = true;
+      });
+      canvas.addEventListener("touchstart", (e) => {
+        if (!gameRunning) return;
+        const x = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+        if (x < canvas.width / 2 && bike.x > 10) {
+          bike.x -= 36;
+          bike.lean = -1;
+        } else if (bike.x < canvas.width - bike.w - 10) {
+          bike.x += 36;
+          bike.lean = 1;
+        }
+      });
+
+      startScreen.querySelector("button").onclick = () => {
+        obstacles = [];
+        score = 0;
+        displayScore = 0;
+        level = 1;
+        speed = 3;
+        nitro = 100;
+        levelEl.innerText = level;
+        scoreEl.innerText = score;
+        speedEl.innerText = speed;
+        startScreen.style.display = "none";
+        gameRunning = true;
+        gameLoop();
+      };
+    </script>
+  </body>
+</html>

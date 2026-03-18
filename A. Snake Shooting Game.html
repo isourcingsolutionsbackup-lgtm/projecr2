@@ -1,0 +1,465 @@
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snake Shooter</title>
+
+    <style>
+      /* BACKGROUND */
+
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        overflow: hidden;
+        background: linear-gradient(-45deg, #112683, #142a0f, #898ea5, #d5d8df);
+        background-size: 400% 400%;
+        animation: bgmove 10s infinite linear;
+      }
+
+      @keyframes bgmove {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      /* GAME AREA */
+
+      .game {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* SNAKE */
+
+      .snake {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        background: lime;
+        border-radius: 50%;
+        box-shadow:
+          0 0 10px lime,
+          0 0 20px lime;
+      }
+
+      .head {
+        background: #22c55e;
+        z-index: 5;
+        box-shadow:
+          0 0 15px #22c55e,
+          0 0 25px #22c55e;
+      }
+
+      .eye {
+        position: absolute;
+        width: 5px;
+        height: 5px;
+        background: black;
+        border-radius: 50%;
+        top: 6px;
+      }
+
+      .left {
+        left: 6px;
+      }
+      .right {
+        right: 6px;
+      }
+
+      .nose {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        background: #15803d;
+        border-radius: 50%;
+        bottom: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      /* BULLET */
+
+      .bullet {
+        position: absolute;
+        width: 6px;
+        height: 14px;
+        background: yellow;
+        border-radius: 4px;
+        box-shadow:
+          0 0 10px yellow,
+          0 0 20px yellow;
+      }
+
+      /* ENEMY */
+
+      .enemy {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        background: red;
+        border-radius: 50%;
+        top: -40px;
+        box-shadow:
+          0 0 15px red,
+          0 0 25px red;
+        animation: pulse 1s infinite alternate;
+      }
+
+      @keyframes pulse {
+        from {
+          transform: scale(1);
+        }
+        to {
+          transform: scale(1.2);
+        }
+      }
+
+      /* UI */
+
+      .ui {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        color: white;
+        font-size: 18px;
+        padding: 10px 15px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      /* START SCREEN */
+
+      .start {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        background: rgba(2, 6, 23, 0.8);
+        backdrop-filter: blur(6px);
+        z-index: 20;
+      }
+
+      .start h1 {
+        color: white;
+        font-size: 45px;
+        margin-bottom: 20px;
+        text-shadow: 0 0 15px cyan;
+      }
+
+      .start button {
+        padding: 15px 40px;
+        font-size: 22px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        color: white;
+        background: linear-gradient(45deg, #22c55e, #4ade80);
+        box-shadow: 0 0 15px #22c55e;
+        transition: 0.3s;
+      }
+
+      .start button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 25px #22c55e;
+      }
+
+      /* MOBILE CONTROLS */
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        gap: 10px;
+        z-index: 50;
+      }
+
+      .controls button {
+        width: 60px;
+        height: 60px;
+        font-size: 22px;
+        border: none;
+        border-radius: 10px;
+        background: #1e293b;
+        color: white;
+        box-shadow: 0 0 10px black;
+      }
+
+      /* PHONE ME SHOW */
+
+      @media (max-width: 768px) {
+        .controls {
+          display: flex;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="game" id="game">
+      <div class="ui">
+        <div id="score">Score:0</div>
+        <div id="level">Level:1</div>
+      </div>
+
+      <div class="start" id="start">
+        <h1>Snake Shooter</h1>
+        <button onclick="startGame()">Start Game</button>
+      </div>
+    </div>
+
+    <!-- MOBILE BUTTONS -->
+
+    <div class="controls">
+      <button onclick="moveLeft()">⬅</button>
+      <button onclick="moveUp()">⬆</button>
+      <button onclick="moveDown()">⬇</button>
+      <button onclick="moveRight()">➡</button>
+      <button onclick="shoot()">🔫</button>
+    </div>
+
+    <script>
+      let game = document.getElementById("game");
+      let start = document.getElementById("start");
+
+      let snake = [];
+      let dx = 0;
+      let dy = -5;
+      let shootDir = "up";
+
+      let score = 0;
+      let level = 1;
+
+      let enemySpeed = 3;
+
+      let scoreText = document.getElementById("score");
+      let levelText = document.getElementById("level");
+
+      let gameRunning = false;
+
+      function createSnake() {
+        let head = document.createElement("div");
+        head.className = "snake head";
+
+        head.style.left = game.clientWidth / 2 + "px";
+        head.style.top = game.clientHeight / 2 + "px";
+
+        let eye1 = document.createElement("div");
+        eye1.className = "eye left";
+
+        let eye2 = document.createElement("div");
+        eye2.className = "eye right";
+
+        let nose = document.createElement("div");
+        nose.className = "nose";
+
+        head.appendChild(eye1);
+        head.appendChild(eye2);
+        head.appendChild(nose);
+
+        game.appendChild(head);
+
+        snake.push(head);
+      }
+
+      function startGame() {
+        start.style.display = "none";
+
+        createSnake();
+
+        gameRunning = true;
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (!gameRunning) return;
+
+        if (e.key === "ArrowLeft") moveLeft();
+        if (e.key === "ArrowRight") moveRight();
+        if (e.key === "ArrowUp") moveUp();
+        if (e.key === "ArrowDown") moveDown();
+
+        if (e.code === "Space") shoot();
+      });
+
+      function moveLeft() {
+        dx = -5;
+        dy = 0;
+        shootDir = "left";
+      }
+      function moveRight() {
+        dx = 5;
+        dy = 0;
+        shootDir = "right";
+      }
+      function moveUp() {
+        dy = -5;
+        dx = 0;
+        shootDir = "up";
+      }
+      function moveDown() {
+        dy = 5;
+        dx = 0;
+        shootDir = "down";
+      }
+
+      function moveSnake() {
+        if (!gameRunning) return;
+
+        let head = snake[0];
+
+        let prevX = head.offsetLeft;
+        let prevY = head.offsetTop;
+
+        head.style.left = head.offsetLeft + dx + "px";
+        head.style.top = head.offsetTop + dy + "px";
+
+        if (
+          head.offsetLeft < 0 ||
+          head.offsetLeft > game.clientWidth - 24 ||
+          head.offsetTop < 0 ||
+          head.offsetTop > game.clientHeight - 24
+        ) {
+          gameOver();
+        }
+
+        for (let i = 1; i < snake.length; i++) {
+          let part = snake[i];
+
+          let tempX = part.offsetLeft;
+          let tempY = part.offsetTop;
+
+          part.style.left = prevX + "px";
+          part.style.top = prevY + "px";
+
+          prevX = tempX;
+          prevY = tempY;
+        }
+      }
+
+      setInterval(moveSnake, 40);
+
+      function shoot() {
+        let head = snake[0];
+
+        let bullet = document.createElement("div");
+        bullet.className = "bullet";
+
+        bullet.style.left = head.offsetLeft + 12 + "px";
+        bullet.style.top = head.offsetTop + "px";
+
+        game.appendChild(bullet);
+
+        score++;
+        scoreText.innerText = "Score:" + score;
+
+        let move = setInterval(() => {
+          if (shootDir === "up")
+            bullet.style.top = bullet.offsetTop - 10 + "px";
+          if (shootDir === "down")
+            bullet.style.top = bullet.offsetTop + 10 + "px";
+          if (shootDir === "left")
+            bullet.style.left = bullet.offsetLeft - 10 + "px";
+          if (shootDir === "right")
+            bullet.style.left = bullet.offsetLeft + 10 + "px";
+
+          let enemies = document.querySelectorAll(".enemy");
+
+          enemies.forEach((enemy) => {
+            if (
+              bullet.offsetTop < enemy.offsetTop + 30 &&
+              bullet.offsetTop > enemy.offsetTop &&
+              bullet.offsetLeft < enemy.offsetLeft + 30 &&
+              bullet.offsetLeft + 6 > enemy.offsetLeft
+            ) {
+              enemy.remove();
+              bullet.remove();
+              clearInterval(move);
+
+              growSnake();
+
+              score += 5;
+              scoreText.innerText = "Score:" + score;
+            }
+          });
+        }, 20);
+      }
+
+      function growSnake() {
+        let last = snake[snake.length - 1];
+
+        let part = document.createElement("div");
+        part.className = "snake";
+
+        part.style.left = last.offsetLeft + "px";
+        part.style.top = last.offsetTop + "px";
+
+        game.appendChild(part);
+
+        snake.push(part);
+      }
+
+      function createEnemy() {
+        if (!gameRunning) return;
+
+        let enemy = document.createElement("div");
+        enemy.className = "enemy";
+
+        enemy.style.left = Math.random() * game.clientWidth + "px";
+
+        game.appendChild(enemy);
+
+        let move = setInterval(() => {
+          enemy.style.top = enemy.offsetTop + enemySpeed + "px";
+
+          let head = snake[0];
+
+          if (
+            enemy.offsetTop + 30 > head.offsetTop &&
+            enemy.offsetTop < head.offsetTop + 24 &&
+            enemy.offsetLeft + 30 > head.offsetLeft &&
+            enemy.offsetLeft < head.offsetLeft + 24
+          ) {
+            gameOver();
+          }
+
+          if (enemy.offsetTop > game.clientHeight) {
+            enemy.remove();
+            clearInterval(move);
+          }
+        }, 20);
+      }
+
+      setInterval(createEnemy, 1500);
+
+      function gameOver() {
+        gameRunning = false;
+
+        start.style.display = "flex";
+
+        start.innerHTML = `
+<h1>Game Over</h1>
+<button onclick="location.reload()">Restart</button>
+`;
+      }
+    </script>
+  </body>
+</html>
+```

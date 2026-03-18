@@ -1,0 +1,239 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Whack The Emoji - Level Mode</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  text-align:center;
+  overflow:hidden;
+  background-color: cadetblue;
+  /* background:linear-gradient(#0f2027,#203a43,#2c5364); */
+  color:white;
+}
+
+h1{
+  margin:15px;
+  text-shadow:0 0 10px yellow;
+}
+
+.stats{
+  font-size:20px;
+}
+
+/* Board */
+.board{
+  width:500px;
+  margin:20px auto;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:30px;
+}
+
+/* Hole */
+.hole{
+  width:130px;
+  height:130px;
+  background:radial-gradient(circle,#4b1d00,#1f0c00);
+  border-radius:50%;
+  position:relative;
+  overflow:hidden;
+  transition:0.3s;
+  box-shadow:0 0 15px black inset;
+}
+
+/* Active hole glow */
+.hole.active{
+  box-shadow:0 0 20px yellow;
+}
+
+/* Emoji */
+.emoji{
+  font-size:70px;
+  position:absolute;
+  bottom:-100px;
+  left:50%;
+  transform:translateX(-50%);
+  transition:0.3s;
+  cursor:pointer;
+}
+
+.hole.active .emoji{
+  bottom:20px;
+}
+
+/* Hit animation */
+.hit{
+  animation:hitAnim 0.3s forwards;
+}
+
+@keyframes hitAnim{
+  0%{transform:translateX(-50%) scale(1);}
+  50%{transform:translateX(-50%) scale(1.5) rotate(20deg);}
+  100%{transform:translateX(-50%) scale(0);opacity:0;}
+}
+
+/* Level up popup */
+#levelUp{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:60px;
+  color:yellow;
+  display:none;
+  animation:levelAnim 1s ease;
+}
+
+@keyframes levelAnim{
+  0%{transform:translate(-50%,-50%) scale(0);}
+  50%{transform:translate(-50%,-50%) scale(1.5);}
+  100%{transform:translate(-50%,-50%) scale(1);}
+}
+
+/* Hammer */
+#hammer{
+  position:absolute;
+  font-size:50px;
+  pointer-events:none;
+  z-index:1000;
+  transition:transform 0.05s;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎯 SCORE: <span id="score">0</span></h1>
+<div class="stats">
+Level: <span id="level">1</span> |
+Miss: <span id="miss">0</span>/5
+</div>
+
+<div class="board" id="board"></div>
+
+<div id="hammer">🔨</div>
+<div id="levelUp">LEVEL UP 🚀</div>
+
+
+
+<script>
+const board=document.getElementById("board");
+const scoreDisplay=document.getElementById("score");
+const levelDisplay=document.getElementById("level");
+const missDisplay=document.getElementById("miss");
+const hammer=document.getElementById("hammer");
+const levelUpPopup=document.getElementById("levelUp");
+
+let score=0;
+let level=1;
+let chances=5;        // EASY MODE = 5 chances
+let speed=1000;       // Slow start
+let activeHole=null;
+let gameInterval;
+
+missDisplay.textContent=chances;
+
+const emojis=["😈","🤡","👻","🤖","🐵","😹","👽","💀","🔥"];
+
+for(let i=0;i<9;i++){
+  const hole=document.createElement("div");
+  hole.classList.add("hole");
+
+  const emoji=document.createElement("div");
+  emoji.classList.add("emoji");
+  emoji.textContent=randomEmoji();
+
+  hole.appendChild(emoji);
+  board.appendChild(hole);
+
+  emoji.addEventListener("click",()=>{
+    if(hole===activeHole){
+
+      score++;
+      scoreDisplay.textContent=score;
+
+      chances=5;   // Reset to 5
+      missDisplay.textContent=chances;
+
+      emoji.classList.add("hit");
+
+      setTimeout(()=>{
+        emoji.classList.remove("hit");
+        hole.classList.remove("active");
+        activeHole=null;
+        emoji.textContent=randomEmoji();
+      },300);
+
+      if(score % 5===0){
+        level++;
+        levelDisplay.textContent=level;
+
+        speed=Math.max(600,speed-80);  // Slow increase difficulty
+        showLevelUp();
+        restartGameLoop();
+      }
+    }
+  });
+}
+
+const holes=document.querySelectorAll(".hole");
+
+function randomEmoji(){
+  return emojis[Math.floor(Math.random()*emojis.length)];
+}
+
+function randomPop(){
+
+  if(activeHole){
+    chances--;
+    missDisplay.textContent=chances;
+
+    if(chances<=0){
+      gameOver();
+      return;
+    }
+  }
+
+  holes.forEach(h=>h.classList.remove("active"));
+  const index=Math.floor(Math.random()*holes.length);
+  activeHole=holes[index];
+  activeHole.classList.add("active");
+}
+
+function restartGameLoop(){
+  clearInterval(gameInterval);
+  gameInterval=setInterval(randomPop,speed);
+}
+
+function showLevelUp(){
+  levelUpPopup.style.display="block";
+  setTimeout(()=>{
+    levelUpPopup.style.display="none";
+  },1000);
+}
+
+function gameOver(){
+  clearInterval(gameInterval);
+  alert("😊 GAME OVER!\nFinal Score: "+score);
+  location.reload();
+}
+
+restartGameLoop();
+
+document.addEventListener("mousemove",(e)=>{
+  hammer.style.left=e.pageX-25+"px";
+  hammer.style.top=e.pageY-25+"px";
+});
+
+document.addEventListener("click",()=>{
+  hammer.style.transform="rotate(-40deg)";
+  setTimeout(()=>hammer.style.transform="rotate(0deg)",100);
+});
+</script>
+
+</body>
+</html>

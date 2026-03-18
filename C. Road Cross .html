@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Ball Cross Road</title>
+
+<style>
+
+body{
+/* background:linear-gradient(#0f2027,#203a43,#2c5364); */
+display:flex;
+justify-content:center;
+align-items:center;
+height:70vh;
+font-family:sans-serif;
+margin-top:30px;
+margin-bottom:60px;
+}
+
+.game{
+position:relative;
+width:420px;
+height:610px;
+background:#27ae60;
+border-radius:20px;
+overflow:hidden;
+box-shadow:0 0 40px rgba(0,0,0,0.8);
+margin-top:140px;
+}
+
+.ui{
+position:absolute;
+top:10px;
+left:15px;
+color:white;
+font-weight:bold;
+font-size:18px;
+z-index:5;
+}
+
+.game::before{
+content:"";
+position:absolute;
+width:100%;
+height:100%;
+background:repeating-linear-gradient(
+0deg,
+transparent 0px,
+transparent 110px,
+#1e8449 110px,
+#1e8449 115px
+);
+}
+
+.road{
+position:absolute;
+width:100%;
+height:90px;
+background:#2f3640;
+box-shadow:inset 0 5px 10px rgba(0,0,0,0.6);
+}
+
+/* MOVING ROAD LINE */
+
+.road::after{
+content:"";
+position:absolute;
+top:42px;
+width:100%;
+height:6px;
+
+background:repeating-linear-gradient(
+to right,
+#fbc531 0px,
+#fbc531 40px,
+transparent 40px,
+transparent 80px
+);
+
+animation:roadMove 0.4s linear infinite;
+}
+
+@keyframes roadMove{
+
+from{
+background-position-x:0;
+}
+
+to{
+background-position-x:-80px;
+}
+
+}
+
+/* ZEBRA */
+
+.zebra{
+position:absolute;
+top:0;
+width:100%;
+height:90px;
+
+background:repeating-linear-gradient(
+to right,
+white 0px,
+white 15px,
+transparent 15px,
+transparent 30px
+);
+
+opacity:0.8;
+}
+
+/* CAR */
+
+.car{
+position:absolute;
+width:80px;
+height:45px;
+background:linear-gradient(#ff3f34,#c23616);
+border-radius:10px;
+box-shadow:
+0 8px 12px rgba(0,0,0,0.6),
+inset 0 3px 5px rgba(255,255,255,0.4);
+}
+
+.car::before{
+content:"";
+position:absolute;
+width:35px;
+height:18px;
+background:#dcdde1;
+top:8px;
+left:22px;
+border-radius:5px;
+}
+
+/* PLAYER */
+
+.player{
+position:absolute;
+width:35px;
+height:35px;
+background:radial-gradient(circle at 30% 30%,#fff,#00a8ff);
+border-radius:50%;
+top:590px;
+left:185px;
+z-index:3;
+box-shadow:
+0 0 15px #00a8ff,
+0 8px 15px rgba(0,0,0,0.6);
+}
+
+/* GAME OVER SCREEN */
+
+.over{
+position:absolute;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.85);
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:32px;
+text-align:center;
+display:none;
+flex-direction:column;
+
+transform:translateY(-100%);
+transition:0.5s;
+
+z-index:100;
+}
+
+/* BUTTON */
+
+button{
+padding:12px 25px;
+margin-top:15px;
+border:none;
+border-radius:8px;
+font-size:16px;
+cursor:pointer;
+background:#00a8ff;
+color:white;
+
+z-index:101;
+position:relative;
+}
+/* TABLET */
+
+@media (max-width:768px){
+
+.game{
+width:100vw;
+height:75vh;
+}
+
+.car{
+width:60px;
+height:35px;
+}
+
+.player{
+width:30px;
+height:30px;
+}
+
+.ui{
+font-size:16px;
+}
+
+}
+
+
+/* MOBILE */
+
+@media (max-width:480px){
+
+.game{
+width:95vw;
+height:70vh;
+border-radius:12px;
+}
+
+.car{
+width:50px;
+height:30px;
+}
+
+.player{
+width:26px;
+height:26px;
+}
+
+.ui{
+font-size:14px;
+left:10px;
+}
+
+button{
+font-size:14px;
+padding:10px 20px;
+}
+
+}
+
+
+/* VERY SMALL MOBILE */
+
+@media (max-width:360px){
+
+.game{
+height:65vh;
+width: 100vw;
+}
+
+.car{
+width:45px;
+height:26px;
+}
+
+.player{
+width:24px;
+height:24px;
+}
+
+}
+</style>
+</head>
+
+<body>
+
+<div class="game" id="game">
+
+<div class="ui" id="ui">Level 1</div>
+
+<div class="player" id="player"></div>
+
+<div class="over" id="over"></div>
+
+</div>
+
+<script>
+
+const game=document.getElementById("game");
+const player=document.getElementById("player");
+const over=document.getElementById("over");
+const ui=document.getElementById("ui");
+
+let playerX=185;
+let playerY=590;
+
+let level=1;
+let speed=2;
+let running=true;
+let canMove=true;
+
+const lanes=[590,480,370,260,150,40];
+
+/* CREATE ROADS */
+
+for(let i=0;i<4;i++){
+
+let top=100+i*110;
+
+let road=document.createElement("div");
+road.className="road";
+road.style.top=top+"px";
+
+game.appendChild(road);
+
+let zebra=document.createElement("div");
+zebra.className="zebra";
+road.appendChild(zebra);
+
+createLane(top,i%2===0?1:-1);
+
+}
+
+/* CAR LANES */
+
+function createLane(top,direction){
+
+let cars=[];
+let gap=280;
+
+for(let i=0;i<2;i++){
+
+let car=document.createElement("div");
+car.className="car";
+
+car.style.top=(top+22)+"px";
+car.style.left=(i*gap)+"px";
+
+game.appendChild(car);
+
+cars.push(car);
+
+}
+
+function move(){
+
+if(!running)return;
+
+cars.forEach(car=>{
+
+let left=parseFloat(car.style.left);
+
+car.style.left=(left + speed*direction)+"px";
+
+if(direction===1 && left>420){
+car.style.left="-200px";
+}
+
+if(direction===-1 && left<-200){
+car.style.left="420px";
+}
+
+let c=car.getBoundingClientRect();
+let p=player.getBoundingClientRect();
+
+if(
+c.left<p.right &&
+c.right>p.left &&
+c.top<p.bottom &&
+c.bottom>p.top
+){
+gameOver();
+}
+
+});
+
+requestAnimationFrame(move);
+
+}
+
+move();
+
+}
+
+/* PLAYER MOVE */
+
+document.addEventListener("keydown",e=>{
+
+if(!running || !canMove)return;
+
+let index=lanes.indexOf(playerY);
+
+if(e.key==="ArrowUp" && index<lanes.length-1){
+
+playerY=lanes[index+1];
+canMove=false;
+
+setTimeout(()=>{
+canMove=true;
+},500);
+
+}
+
+if(e.key==="ArrowDown" && index>0){
+playerY=lanes[index-1];
+}
+
+if(e.key==="ArrowLeft")playerX-=55;
+if(e.key==="ArrowRight")playerX+=55;
+
+if(playerX<0)playerX=0;
+if(playerX>375)playerX=375;
+
+player.style.left=playerX+"px";
+player.style.top=playerY+"px";
+
+/* LEVEL UP */
+
+if(playerY===40){
+
+level++;
+speed+=0.8;
+
+ui.innerText="Level "+level;
+
+playerY=590;
+player.style.top=playerY+"px";
+
+}
+
+});
+
+/* GAME OVER */
+
+function gameOver(){
+
+running=false;
+
+over.innerHTML="💀 GAME OVER<br><button onclick='restartGame()'>Restart</button>";
+
+over.style.display="flex";
+
+setTimeout(()=>{
+over.style.transform="translateY(0)";
+},10);
+
+}
+
+/* RESTART */
+
+function restartGame(){
+
+over.style.transform="translateY(-100%)";
+
+setTimeout(()=>{
+
+playerX=185;
+playerY=590;
+
+level=1;
+speed=2;
+
+ui.innerText="Level 1";
+
+player.style.left=playerX+"px";
+player.style.top=playerY+"px";
+
+over.style.display="none";
+
+running=true;
+
+},400);
+
+}
+
+</script>
+
+</body>
+</html>

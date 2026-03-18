@@ -1,0 +1,401 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bike Race Level Game</title>
+
+<style>
+
+body{
+margin:0;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+font-family:sans-serif;
+/* background:#020617; */
+}
+
+/* GAME WRAPPER */
+
+.gameWrap{
+position:relative;
+width:95vw;
+max-width:420px;
+}
+
+/* CANVAS */
+
+canvas{
+background:#020617;
+border-radius:20px;
+width:100%;
+height:auto;
+box-shadow:0 20px 60px rgba(0,0,0,.8);
+}
+
+/* HUD */
+
+#hud{
+position:absolute;
+top:10px;
+left:15px;
+color:#38bdf8;
+font-size:14px;
+font-weight: 900;
+}
+
+/* START SCREEN */
+
+#start{
+position:absolute;
+inset:0;
+display:flex;
+justify-content:center;
+align-items:center;
+background:rgba(0,0,0,.7);
+border-radius:20px;
+}
+
+button{
+padding:14px 30px;
+font-size:18px;
+border:none;
+border-radius:30px;
+background:#38bdf8;
+cursor:pointer;
+font-weight:bold;
+}
+
+/* LEVEL UP */
+
+#levelUp{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%) scale(0);
+color:#38bdf8;
+font-size:40px;
+font-weight:bold;
+transition:.6s;
+opacity:0;
+pointer-events:none;
+text-shadow:0 0 20px #38bdf8;
+}
+
+#levelUp.show{
+transform:translate(-50%,-50%) scale(1);
+opacity:1;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="gameWrap">
+
+<div id="hud">
+Score: <span id="score">0</span><br>
+Coins: <span id="coins">0</span><br>
+Level: <span id="level">1</span>
+</div>
+
+<div id="levelUp">LEVEL UP</div>
+
+<div id="start">
+<button>START</button>
+</div>
+
+<canvas id="game" width="380" height="620"></canvas>
+
+</div>
+
+<script>
+
+const canvas=document.getElementById("game")
+const ctx=canvas.getContext("2d")
+
+const scoreEl=document.getElementById("score")
+const coinEl=document.getElementById("coins")
+const levelEl=document.getElementById("level")
+const start=document.getElementById("start")
+const levelUpText=document.getElementById("levelUp")
+
+let running=false
+
+let score=0
+let coins=0
+let level=1
+
+let speed=4
+let roadOffset=0
+
+const bikeColors=["#2563eb","#ef4444","#22c55e","#facc15","#a855f7","#fb923c"]
+const coinColors=["#facc15","#22c55e","#38bdf8","#ef4444","#a855f7"]
+
+let bikeColor=bikeColors[0]
+let coinColor=coinColors[0]
+
+const bike={
+x:canvas.width/2-20,
+y:480,
+w:40,
+h:80,
+vy:0
+}
+
+let obstacles=[]
+let coinList=[]
+
+function spawnObstacle(){
+
+obstacles.push({
+x:Math.random()*(canvas.width-70),
+y:-120,
+w:70,
+h:110,
+color:["#ef4444","#22c55e","#3b82f6","#eab308"][Math.floor(Math.random()*4)]
+})
+
+}
+
+function spawnCoin(){
+
+coinList.push({
+x:Math.random()*(canvas.width-30),
+y:-40,
+r:12
+})
+
+}
+
+function drawRoad(){
+
+ctx.fillStyle="#020617"
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+roadOffset+=speed
+if(roadOffset>40) roadOffset=0
+
+ctx.strokeStyle="#facc15"
+ctx.lineWidth=4
+ctx.setLineDash([20,20])
+
+ctx.beginPath()
+ctx.moveTo(canvas.width/2,-40+roadOffset)
+ctx.lineTo(canvas.width/2,canvas.height)
+ctx.stroke()
+
+ctx.setLineDash([])
+
+}
+
+function drawBike(){
+
+ctx.fillStyle=bikeColor
+ctx.fillRect(bike.x+8,bike.y+20,24,35)
+
+ctx.fillStyle="#111"
+
+ctx.beginPath()
+ctx.arc(bike.x+10,bike.y+70,13,0,Math.PI*2)
+ctx.fill()
+
+ctx.beginPath()
+ctx.arc(bike.x+30,bike.y+70,13,0,Math.PI*2)
+ctx.fill()
+
+ctx.fillStyle="#fff"
+ctx.fillRect(bike.x+16,bike.y+5,8,12)
+
+}
+
+function drawCar(x,y,w,h,color){
+
+ctx.fillStyle=color
+ctx.fillRect(x,y+20,w,h-20)
+
+ctx.fillStyle="#111"
+ctx.fillRect(x+10,y,w-20,30)
+
+ctx.fillStyle="#38bdf8"
+ctx.fillRect(x+15,y+6,12,16)
+ctx.fillRect(x+w-27,y+6,12,16)
+
+ctx.fillStyle="#111"
+
+ctx.beginPath()
+ctx.arc(x+12,y+h-4,8,0,Math.PI*2)
+ctx.fill()
+
+ctx.beginPath()
+ctx.arc(x+w-12,y+h-4,8,0,Math.PI*2)
+ctx.fill()
+
+}
+
+function drawObstacles(){
+obstacles.forEach(o=>{
+drawCar(o.x,o.y,o.w,o.h,o.color)
+})
+}
+
+function drawCoins(){
+coinList.forEach(c=>{
+ctx.fillStyle=coinColor
+ctx.beginPath()
+ctx.arc(c.x,c.y,c.r,0,Math.PI*2)
+ctx.fill()
+})
+}
+
+function levelUp(){
+
+level++
+speed+=1
+
+bikeColor=bikeColors[level % bikeColors.length]
+coinColor=coinColors[level % coinColors.length]
+
+levelEl.innerText=level
+
+levelUpText.classList.add("show")
+
+setTimeout(()=>{
+levelUpText.classList.remove("show")
+},800)
+
+}
+
+function update(){
+
+score++
+scoreEl.innerText=score
+
+bike.y+=bike.vy
+bike.vy+=0.6
+
+if(bike.y>480){
+bike.y=480
+bike.vy=0
+}
+
+obstacles.forEach(o=>o.y+=speed)
+coinList.forEach(c=>c.y+=speed)
+
+obstacles=obstacles.filter(o=>o.y<700)
+coinList=coinList.filter(c=>c.y<700)
+
+coinList.forEach(c=>{
+
+if(
+bike.x<c.x+10 &&
+bike.x+bike.w>c.x-10 &&
+bike.y<c.y+10 &&
+bike.y+bike.h>c.y-10
+){
+
+coins++
+coinEl.innerText=coins
+
+c.y=700
+
+if(coins%20===0){
+levelUp()
+}
+
+}
+
+})
+
+obstacles.forEach(o=>{
+
+if(
+bike.x<o.x+o.w &&
+bike.x+bike.w>o.x &&
+bike.y<o.y+o.h &&
+bike.y+bike.h>o.y
+){
+
+running=false
+start.style.display="flex"
+
+}
+
+})
+
+}
+
+function gameLoop(){
+
+if(!running) return
+
+drawRoad()
+drawBike()
+drawObstacles()
+drawCoins()
+
+update()
+
+requestAnimationFrame(gameLoop)
+
+}
+
+setInterval(()=>{
+if(running) spawnObstacle()
+},1200)
+
+setInterval(()=>{
+if(running) spawnCoin()
+},1000)
+
+window.addEventListener("keydown",e=>{
+
+if(e.key==="ArrowLeft"){
+bike.x-=30
+if(bike.x<0) bike.x=0
+}
+
+if(e.key==="ArrowRight"){
+bike.x+=30
+if(bike.x>canvas.width-bike.w) bike.x=canvas.width-bike.w
+}
+
+if(e.key==="ArrowUp" && bike.vy===0){
+bike.vy=-12
+}
+
+})
+
+start.querySelector("button").onclick=()=>{
+
+obstacles=[]
+coinList=[]
+
+score=0
+coins=0
+level=1
+speed=4
+
+bike.x=canvas.width/2-20
+
+bikeColor=bikeColors[0]
+coinColor=coinColors[0]
+
+scoreEl.innerText=score
+coinEl.innerText=coins
+levelEl.innerText=level
+
+running=true
+start.style.display="none"
+
+gameLoop()
+
+}
+
+</script>
+
+</body>
+</html>

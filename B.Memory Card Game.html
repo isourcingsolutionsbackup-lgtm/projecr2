@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<style>
+
+body{
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+background:linear-gradient(135deg,#1e3c72,#2a5298);
+font-family:sans-serif;
+flex-direction:column;
+}
+
+h1{
+color:white;
+margin-bottom:20px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(4,90px);
+gap:12px;
+}
+
+.card{
+width:90px;
+height:90px;
+background:#ffffff20;
+backdrop-filter:blur(10px);
+border-radius:10px;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:35px;
+color:white;
+cursor:pointer;
+transition:transform .3s, background .3s;
+box-shadow:0 5px 15px rgba(0,0,0,.3);
+}
+
+.card:hover{
+transform:scale(1.08);
+background:#ffffff40;
+}
+
+.win{
+color:white;
+font-size:25px;
+margin-top:20px;
+display:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Memory Game</h1>
+
+<div class="grid" id="grid"></div>
+
+<div class="win" id="win">🎉 You Win!</div>
+
+<script>
+
+let emojis=["🍎","🍎","🍌","🍌","🍇","🍇","🍒","🍒"]
+
+emojis.sort(()=>0.5-Math.random())
+
+let grid=document.getElementById("grid")
+let win=document.getElementById("win")
+
+let first=null
+let second=null
+let lock=false
+let matchCount=0
+
+emojis.forEach(e=>{
+
+let card=document.createElement("div")
+card.className="card"
+card.dataset.value=e
+
+card.onclick=()=>{
+
+if(lock || card.innerText) return
+
+card.innerText=e
+
+if(!first){
+first=card
+}
+
+else if(!second){
+
+second=card
+lock=true
+
+if(first.dataset.value===second.dataset.value){
+
+matchCount++
+
+first=null
+second=null
+lock=false
+
+if(matchCount===4){
+win.style.display="block"
+}
+
+}else{
+
+setTimeout(()=>{
+
+first.innerText=""
+second.innerText=""
+
+first=null
+second=null
+lock=false
+
+},700)
+
+}
+
+}
+
+}
+
+grid.appendChild(card)
+
+})
+
+</script>
+
+</body>
+</html>
